@@ -15,6 +15,13 @@
       "when": 1793113280503,
       "tag": "0001_protecao_historico",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793113732418,
+      "tag": "0002_devolucoes_venda",
+      "breakpoints": true
     }
   ]
 }

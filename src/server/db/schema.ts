@@ -281,3 +281,21 @@ export const relatorioEmissoes = pgTable("relatorio_emissoes", {
   emitidoPor: integer("emitido_por").notNull().references(() => usuarios.id),
   emitidoEm: timestamp("emitido_em", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [uniqueIndex("relatorio_versao_uq").on(t.tipo, t.escopoId, t.inicio, t.fim, t.versao)]);
+
+/** Cancelamentos/devoluções de venda (parciais ou totais), com valores estornados congelados. */
+export const vendaDevolucoes = pgTable("venda_devolucoes", {
+  id: serial("id").primaryKey(),
+  vendaId: integer("venda_id").notNull().references(() => vendas.id),
+  vendaItemId: integer("venda_item_id").notNull().references(() => vendaItens.id),
+  quantidade: integer("quantidade").notNull(),
+  dataEfetiva: date("data_efetiva", { mode: "string" }).notNull(),
+  brutoCents: integer("bruto_cents").notNull(),
+  descontoCents: integer("desconto_cents").notNull(),
+  liquidoCents: integer("liquido_cents").notNull(),
+  custoCents: integer("custo_cents").notNull(),
+  repasseCents: integer("repasse_cents").notNull(),
+  comissaoCents: integer("comissao_cents").notNull(),
+  justificativa: text("justificativa").notNull(),
+  usuarioId: integer("usuario_id").notNull().references(() => usuarios.id),
+  criadoEm: criadoEm(),
+}, (t) => [check("devolucao_qtd_ok", sql`${t.quantidade} > 0`), index("venda_dev_data_idx").on(t.dataEfetiva)]);
