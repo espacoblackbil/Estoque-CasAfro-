@@ -1,9 +1,9 @@
 import { createHash, randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
-import { and, asc, eq, gt, sql } from "drizzle-orm";
+import { and, asc, eq, gt, lt, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { DB } from "../db";
-import { sessoes, usuarios } from "../db/schema";
+import { sessoes, tentativasLogin, usuarios } from "../db/schema";
 import { ErroNegocio, ErroPermissao } from "../erros";
 import { auditar } from "./auditoria";
 import { ehAdmin, exigirAdmin, type Ator, type Papel } from "./permissoes";
@@ -132,9 +132,26 @@ export async function verificarCredenciais(db: DB, login: string, senha: string)
   return { id: u.id, nome: u.nome, papel: u.papel };
 }
 
-export async function entrar(db: DB, login: string, senha: string) {
+export const LIMITE_TENTATIVAS = 5;
+export const JANELA_BLOQUEIO_MS = 15 * 60 * 1000;
+
+export async function entrar(db: DB, login: string, senha: string, agora: Date = new Date()) {
+  const chave = login.trim().toLowerCase();
+  const desde = new Date(agora.getTime() - JANELA_BLOQUEIO_MS);
+  const [r] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(tentativasLogin)
+    .where(and(eq(tentativasLogin.login, chave), gt(tentativasLogin.criadoEm, desde)));
+  if (r.n >= LIMITE_TENTATIVAS) {
+    throw new ErroNegocio("Muitas tentativas incorretas. Aguarde 15 minutos ou peça a um administrador para redefinir a senha.");
+  }
   const ator = await verificarCredenciais(db, login, senha);
-  if (!ator) throw new ErroNegocio("Login ou senha incorretos.");
+  if (!ator) {
+    await db.insert(tentativasLogin).values({ login: chave, criadoEm: agora });
+    await db.delete(tentativasLogin).where(lt(tentativasLogin.criadoEm, new Date(agora.getTime() - 24 * 3600 * 1000)));
+    throw new ErroNegocio("Login ou senha incorretos.");
+  }
+  await db.delete(tentativasLogin).where(eq(tentativasLogin.login, chave));
   const token = randomBytes(32).toString("base64url");
   const expiraEm = new Date(Date.now() + DURACAO_SESSAO_MS);
   await db.insert(sessoes).values({ id: hashToken(token), usuarioId: ator.id, expiraEm });

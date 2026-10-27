@@ -299,3 +299,10 @@ export const vendaDevolucoes = pgTable("venda_devolucoes", {
   usuarioId: integer("usuario_id").notNull().references(() => usuarios.id),
   criadoEm: criadoEm(),
 }, (t) => [check("devolucao_qtd_ok", sql`${t.quantidade} > 0`), index("venda_dev_data_idx").on(t.dataEfetiva)]);
+
+/** Tentativas de login falhas (proteção contra adivinhação de senha). */
+export const tentativasLogin = pgTable("tentativas_login", {
+  id: serial("id").primaryKey(),
+  login: text("login").notNull(),
+  criadoEm: criadoEm(),
+}, (t) => [index("tentativas_login_idx").on(t.login, t.criadoEm)]);

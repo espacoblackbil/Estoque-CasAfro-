@@ -1,6 +1,7 @@
 # Matriz de rastreabilidade — especificação × código × testes
 
 Testes em `tests/` (rodam em PostgreSQL real: PGlite por padrão ou servidor via `TEST_DATABASE_URL`).
+O roteiro `scripts/e2e.cjs` repete os fluxos principais no navegador (celular), com asserções.
 
 | Spec | Requisito | Implementação | Testes |
 |---|---|---|---|
@@ -16,7 +17,7 @@ Testes em `tests/` (rodam em PostgreSQL real: PGlite por padrão ou servidor via
 | §6 | Justificativa obrigatória em correções | `ajustarInventario`, `anularMovimentacao`, `corrigirMovimentacao` | `m3` |
 | §6 | Estoque negativo permitido e destacado | `lancarSaida` (pendentes), `vendas.estoqueNegativo` | `m3`, `m4` — critério 5 |
 | §6 | Divergência classificada antes do repasse | `ajustarInventario` | `m3` |
-| §6 | Retroativo com valores da época | overrides em `registrarSaida`/`registrarVenda` | `m3`, `m4` — critério 7 |
+| §6 | Retroativo com valores da época | overrides em `registrarSaida`/`registrarVenda`; campos "da época" na tela de venda (admin, data passada) | `m3`, `m4` — critério 7; `scripts/e2e.cjs` |
 | §6 | Saldo inicial e reconciliação sem duplicar | `definirSaldoInicial`, `afetaEstoque` | `m3` |
 | §7 | Venda multi-item, pagamento dividido que fecha no total | `vendas.registrarVenda` | `m4` — critério 1 |
 | §7 | Desconto só admin, rateio proporcional | `calcularItens`, `ratear` | `m1` — rateio; `m4` — critério 2 |
@@ -25,12 +26,14 @@ Testes em `tests/` (rodam em PostgreSQL real: PGlite por padrão ou servidor via
 | §8 | Pagamentos parciais/integrais, extrato | `registrarPagamentoComissao`, `extratoComissoes` | `m4`, `m8` |
 | §9 | Linhas do resultado sem duplicidade; não é lucro do salão | `financeiro.apurarResultado` | `m7` |
 | §9 | Valores históricos não mudam com novos preços | colunas congeladas em `venda_itens`/`movimentacoes` | `m4` — critério 7 |
+| §3.2, §9 | Consultar custos, resultados e repasses por período | `src/app/(app)/financeiro` (usa `services/financeiro.ts`) | `m7`; `scripts/e2e.cjs` |
 | §10 | Dashboard | `financeiro.dashboard`, `src/app/(app)/page.tsx` | `m7` |
 | §11.1–11.3 | PDFs geral, fornecedor, colaborador | `services/relatorios.ts`, `server/pdf/documento.ts` | `m8` — critério 10 |
 | §11.4 | Retificação com versões preservadas | `emitirRelatorio`, `relatorio_emissoes` | `m8` — critério 8 |
 | §12 | Central de Relatórios / fechamento | `relatorios.fechamento`, `src/app/(app)/relatorios` | `m8` |
 | §13 | Auditoria imutável, nada apagado, sem duplicidade | `services/auditoria.ts`, gatilhos `0001`/`0002`, `chave_idempotencia` | `m1`, `m3`, `m4` (idempotência em paralelo), `m8` |
 | §14 | Configurações e logotipo nos relatórios | `services/configuracoes.ts`, `src/app/(app)/configuracoes` | `m1` |
+| §15 | Bloqueio após tentativas de senha erradas | `usuarios.entrar`, tabela `tentativas_login` | `m1` — tentativas repetidas; `scripts/e2e.cjs` |
 | §15 | Banco persistente, auth segura, backup | `server/db`, `scripts/backup.ts`, `docs/ARQUITETURA.md` | suíte com `TEST_DATABASE_URL` |
 
 ## Critérios mínimos de funcionamento (§17)

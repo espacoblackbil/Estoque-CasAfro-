@@ -16,7 +16,7 @@ fornecedores e relatórios financeiros em PDF — pensada para uso no celular.
 | **Estoque** | Entradas com custo médio ponderado, consumo interno, perdas, danos, devolução ao fornecedor, inventário com classificação obrigatória, estoque negativo rastreado, saldo inicial de implantação, lançamentos retroativos, correções por anulação + novo lançamento. |
 | **Consignação** | Repasse fixo por unidade, apurado em vendas, consumo, perdas e danos; prestação de contas em PDF por fornecedor. |
 | **Comissões** | Percentual por produto sobre o valor líquido; pagamentos parciais; estornos e ajustes negativos sem alterar pagamentos antigos. |
-| **Financeiro** | Faturamento bruto, descontos, receita líquida, CMV, repasses, comissões, consumo, perdas e resultado estimado. Painel com rankings e estoque baixo. |
+| **Financeiro** | Tela por mês ou intervalo: faturamento bruto, descontos, receita líquida, CMV, repasses, comissões, consumo, perdas e resultado estimado. Painel com rankings e estoque baixo. |
 | **Relatórios** | PDFs geral, por fornecedor, por colaborador e de comissões; fechamento mensal em um clique; versões retificadas preservando as anteriores. |
 | **Auditoria** | Quem, quando, antes, depois e por quê. O banco impede apagar ou reescrever o histórico. |
 
@@ -26,7 +26,7 @@ Requisitos: Node.js 20+.
 
 ```bash
 npm install
-npm test        # 52 testes contra PostgreSQL embutido (nenhuma instalação necessária)
+npm test        # testes contra PostgreSQL embutido (nenhuma instalação necessária)
 npm run dev     # http://localhost:3000 — usa PostgreSQL embutido em ./.data se DATABASE_URL não existir
 ```
 
@@ -37,6 +37,9 @@ Para rodar os testes também contra um servidor PostgreSQL:
 ```bash
 TEST_DATABASE_URL=postgres://usuario:senha@localhost:5432/postgres npm test
 ```
+
+Teste ponta a ponta no navegador (requer `playwright` instalado): veja as instruções no topo de
+[`scripts/e2e.cjs`](scripts/e2e.cjs).
 
 ## Colocando no ar (gratuito)
 

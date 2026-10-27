@@ -114,3 +114,17 @@ describe("M1 · troca da própria senha", () => {
     expect((await entrar(c.db, "carla", "novasenha")).ator.id).toBe(c.colab.id);
   });
 });
+
+describe("M1 · proteção contra tentativas repetidas", () => {
+  it("bloqueia o login após 5 erros e libera após 15 minutos", async () => {
+    const c = await novoCenario();
+    const t0 = new Date();
+    for (let i = 0; i < 5; i++) await expect(entrar(c.db, "carla", "errada", t0)).rejects.toThrow("incorretos");
+    // mesmo com a senha certa, fica bloqueado
+    await expect(entrar(c.db, "Carla", "senha123", t0)).rejects.toThrow("Muitas tentativas");
+    // outro usuário não é afetado
+    expect((await entrar(c.db, "bia", "senha123", t0)).ator.id).toBe(c.colab2.id);
+    const depois = new Date(t0.getTime() + 16 * 60 * 1000);
+    expect((await entrar(c.db, "carla", "senha123", depois)).ator.id).toBe(c.colab.id);
+  });
+});

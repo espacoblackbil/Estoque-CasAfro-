@@ -2,7 +2,7 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import type { ProdutoPublico } from "@/server/services/cadastros";
-import { formatarBRL as R, parseBRL } from "@/domain/money";
+import { formatarBRL as R, parseBRL, parsePercentual } from "@/domain/money";
 import { acaoRegistrarVenda, type RespostaVenda } from "./acoes";
 
 type Forma = "pix" | "dinheiro" | "debito" | "credito";
@@ -13,14 +13,18 @@ const FORMAS: { id: Forma; rotulo: string }[] = [
   { id: "credito", rotulo: "Crédito" },
 ];
 
-interface Linha { produto: ProdutoPublico; qtd: number; desconto: string }
+interface Linha {
+  produto: ProdutoPublico; qtd: number; desconto: string;
+  /** Valores da época (venda retroativa, só admin). Vazio = valor vigente. */
+  preco: string; custo: string; comissao: string;
+}
 
 const centavos = (t: string) => {
   try { return t.trim() ? parseBRL(t) : 0; } catch { return NaN; }
 };
 const novaChave = () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
 
-export function Pdv(props: { produtos: ProdutoPublico[]; vendedores: { id: number; nome: string }[]; admin: boolean; atorId: number; hoje: string }) {
+export function Pdv(props: { produtos: ProdutoPublico[]; modalidades?: Record<number, "proprio" | "consignado">; vendedores: { id: number; nome: string }[]; admin: boolean; atorId: number; hoje: string }) {
   const { produtos, vendedores, admin } = props;
   const [busca, setBusca] = useState("");
   const [linhas, setLinhas] = useState<Linha[]>([]);
@@ -42,7 +46,12 @@ export function Pdv(props: { produtos: ProdutoPublico[]; vendedores: { id: numbe
     return base.slice(0, 40);
   }, [busca, produtos]);
 
-  const subtotal = linhas.reduce((a, l) => a + l.produto.precoVendaCents * l.qtd, 0);
+  const retroativa = admin && data < props.hoje;
+  const precoDe = (l: Linha) => (retroativa && l.preco.trim() ? centavos(l.preco) : l.produto.precoVendaCents);
+  const subtotal = linhas.reduce((a, l) => a + (precoDe(l) || 0) * l.qtd, 0);
+  const atualizar = (id: number, campo: "desconto" | "preco" | "custo" | "comissao", valor: string) =>
+    setLinhas((ls) => ls.map((x) => (x.produto.id === id ? { ...x, [campo]: valor } : x)));
+  const pct = (t: string) => { try { return parsePercentual(t); } catch { return NaN; } };
   const descItens = linhas.reduce((a, l) => a + (centavos(l.desconto) || 0), 0);
   const dTotal = centavos(descTotal) || 0;
   const total = subtotal - descItens - dTotal;
@@ -54,7 +63,7 @@ export function Pdv(props: { produtos: ProdutoPublico[]; vendedores: { id: numbe
     setLinhas((ls) => {
       const i = ls.findIndex((l) => l.produto.id === p.id);
       if (i >= 0) return ls.map((l, k) => (k === i ? { ...l, qtd: l.qtd + 1 } : l));
-      return [...ls, { produto: p, qtd: 1, desconto: "" }];
+      return [...ls, { produto: p, qtd: 1, desconto: "", preco: "", custo: "", comissao: "" }];
     });
   }
   const mudarQtd = (id: number, qtd: number) => setLinhas((ls) => ls.flatMap((l) => (l.produto.id !== id ? [l] : qtd <= 0 ? [] : [{ ...l, qtd }])));
@@ -67,7 +76,8 @@ export function Pdv(props: { produtos: ProdutoPublico[]; vendedores: { id: numbe
 
   function finalizar() {
     const pags = FORMAS.map((f) => ({ forma: f.id, valorCents: centavos(pagamentos[f.id]) })).filter((p) => p.valorCents);
-    if (pags.some((p) => Number.isNaN(p.valorCents)) || linhas.some((l) => Number.isNaN(centavos(l.desconto))) || Number.isNaN(dTotal)) {
+    const invalido = (l: Linha) => Number.isNaN(centavos(l.desconto)) || (retroativa && [centavos(l.preco), centavos(l.custo), pct(l.comissao)].some(Number.isNaN));
+    if (pags.some((p) => Number.isNaN(p.valorCents)) || linhas.some(invalido) || Number.isNaN(dTotal)) {
       setResposta({ ok: false, erro: "Há um valor digitado incorretamente. Use o formato 12,50." });
       return;
     }
@@ -77,7 +87,19 @@ export function Pdv(props: { produtos: ProdutoPublico[]; vendedores: { id: numbe
         colaboradorId: vendedor,
         cliente: cliente || undefined,
         dataEfetiva: admin ? data : undefined,
-        itens: linhas.map((l) => ({ produtoId: l.produto.id, quantidade: l.qtd, descontoCents: centavos(l.desconto) || 0 })),
+        itens: linhas.map((l) => {
+          const item: { produtoId: number; quantidade: number; descontoCents: number; precoUnitarioCents?: number; custoUnitarioCents?: number; repasseUnitarioCents?: number; comissaoBps?: number } =
+            { produtoId: l.produto.id, quantidade: l.qtd, descontoCents: centavos(l.desconto) || 0 };
+          if (retroativa) {
+            if (l.preco.trim()) item.precoUnitarioCents = centavos(l.preco);
+            if (l.custo.trim()) {
+              if (props.modalidades?.[l.produto.id] === "consignado") item.repasseUnitarioCents = centavos(l.custo);
+              else item.custoUnitarioCents = centavos(l.custo);
+            }
+            if (l.comissao.trim()) item.comissaoBps = pct(l.comissao);
+          }
+          return item;
+        }),
         descontoTotalCents: dTotal,
         pagamentos: pags,
         autorizarMargemNegativa: admin ? confirmaMargem : undefined,
@@ -124,7 +146,7 @@ export function Pdv(props: { produtos: ProdutoPublico[]; vendedores: { id: numbe
             <li key={l.produto.id} style={{ flexWrap: "wrap" }}>
               <div style={{ flex: "1 1 160px" }}>
                 <div className="principal">{l.produto.nome}</div>
-                <small>{R(l.produto.precoVendaCents)} un.</small>
+                <small>{R(precoDe(l) || 0)} un.</small>
                 {l.produto.quantidade - l.qtd < 0 && <div><span className="selo rosa">estoque ficará negativo</span></div>}
               </div>
               <div className="qtd">
@@ -132,10 +154,17 @@ export function Pdv(props: { produtos: ProdutoPublico[]; vendedores: { id: numbe
                 <input inputMode="numeric" value={l.qtd} onChange={(e) => mudarQtd(l.produto.id, parseInt(e.target.value || "0", 10) || 0)} aria-label="Quantidade" />
                 <button type="button" aria-label="Aumentar" onClick={() => mudarQtd(l.produto.id, l.qtd + 1)}>+</button>
               </div>
-              <strong className="num" style={{ minWidth: 90 }}>{R(l.produto.precoVendaCents * l.qtd)}</strong>
+              <strong className="num" style={{ minWidth: 90 }}>{R((precoDe(l) || 0) * l.qtd)}</strong>
               {admin && (
                 <div style={{ flexBasis: "100%" }}>
-                  <input placeholder="Desconto no item (R$)" inputMode="decimal" value={l.desconto} onChange={(e) => setLinhas((ls) => ls.map((x) => (x.produto.id === l.produto.id ? { ...x, desconto: e.target.value } : x)))} />
+                  <input placeholder="Desconto no item (R$)" inputMode="decimal" value={l.desconto} onChange={(e) => atualizar(l.produto.id, "desconto", e.target.value)} />
+                  {retroativa && (
+                    <div className="linha-campos" style={{ marginTop: 8 }}>
+                      <div><label style={{ fontSize: "0.75rem" }}>Preço da época</label><input aria-label="Preço da época" placeholder={R(l.produto.precoVendaCents)} inputMode="decimal" value={l.preco} onChange={(e) => atualizar(l.produto.id, "preco", e.target.value)} /></div>
+                      <div><label style={{ fontSize: "0.75rem" }}>{props.modalidades?.[l.produto.id] === "consignado" ? "Repasse da época" : "Custo da época"}</label><input aria-label="Custo ou repasse da época" placeholder="atual" inputMode="decimal" value={l.custo} onChange={(e) => atualizar(l.produto.id, "custo", e.target.value)} /></div>
+                      <div><label style={{ fontSize: "0.75rem" }}>Comissão da época (%)</label><input aria-label="Comissão da época (%)" placeholder="atual" inputMode="decimal" value={l.comissao} onChange={(e) => atualizar(l.produto.id, "comissao", e.target.value)} /></div>
+                    </div>
+                  )}
                 </div>
               )}
             </li>
@@ -154,7 +183,7 @@ export function Pdv(props: { produtos: ProdutoPublico[]; vendedores: { id: numbe
         {admin && (
           <div className="linha-campos">
             <div className="campo"><label>Desconto no total (R$)</label><input inputMode="decimal" value={descTotal} onChange={(e) => setDescTotal(e.target.value)} placeholder="0,00" /><div className="ajuda">Rateado proporcionalmente entre os itens.</div></div>
-            <div className="campo"><label>Data da venda</label><input type="date" value={data} max={props.hoje} onChange={(e) => setData(e.target.value)} /><div className="ajuda">Datas anteriores: lançamento retroativo.</div></div>
+            <div className="campo"><label>Data da venda</label><input type="date" value={data} max={props.hoje} onChange={(e) => setData(e.target.value)} /><div className="ajuda">{retroativa ? "Venda retroativa: informe nos itens os valores da época (vazio = valor atual)." : "Datas anteriores: lançamento retroativo."}</div></div>
           </div>
         )}
 

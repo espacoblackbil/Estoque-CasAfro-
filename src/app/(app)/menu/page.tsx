@@ -2,7 +2,7 @@ import Link from "next/link";
 import { exigirSessaoAdmin } from "@/server/sessao";
 
 const GRUPOS = [
-  { titulo: "Operação", itens: [["/vendas", "Vendas", "Histórico, cancelamentos e devoluções"], ["/estoque", "Estoque", "Entradas, saídas, inventário e correções"], ["/comissoes", "Comissões", "Saldos, pagamentos e extratos"]] },
+  { titulo: "Operação", itens: [["/financeiro", "Financeiro", "Resultado, repasses e custos por período"], ["/vendas", "Vendas", "Histórico, cancelamentos e devoluções"], ["/estoque", "Estoque", "Entradas, saídas, inventário e correções"], ["/comissoes", "Comissões", "Saldos, pagamentos e extratos"]] },
   { titulo: "Cadastros", itens: [["/produtos", "Produtos", "Preços, custos, repasses e comissões"], ["/fornecedores", "Fornecedores", "Consignantes e distribuidores"], ["/categorias", "Categorias", "Organização dos produtos"]] },
   { titulo: "Fechamento", itens: [["/relatorios", "Central de Relatórios", "PDFs do mês, fornecedores e colaboradores"], ["/auditoria", "Auditoria", "Quem alterou o quê e por quê"]] },
   { titulo: "Administração", itens: [["/usuarios", "Usuários e permissões", "Administradores e colaboradores"], ["/configuracoes", "Configurações", "Dados da empresa, logotipo e estoque mínimo"]] },

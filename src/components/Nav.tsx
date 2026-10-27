@@ -14,6 +14,7 @@ export function Nav({ admin }: { admin: boolean }) {
         { href: "/estoque", rotulo: "Estoque", ico: "⇅" },
         { href: "/menu", rotulo: "Mais", ico: "☰", classe: "so-celular" },
         { href: "/vendas", rotulo: "Vendas", ico: "≡", classe: "so-desktop" },
+        { href: "/financeiro", rotulo: "Financeiro", ico: "$", classe: "so-desktop" },
         { href: "/comissoes", rotulo: "Comissões", ico: "％", classe: "so-desktop" },
         { href: "/relatorios", rotulo: "Relatórios", ico: "⎙", classe: "so-desktop" },
         { href: "/fornecedores", rotulo: "Fornecedores", ico: "◇", classe: "so-desktop" },
