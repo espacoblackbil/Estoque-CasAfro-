@@ -56,6 +56,12 @@ Teste ponta a ponta no navegador (requer `playwright` instalado): veja as instru
 
 Domínio próprio: adicione-o depois em *Vercel › Settings › Domains*.
 
+### Ambiente de teste
+
+Antes da publicação oficial, um ambiente de teste pode usar o mesmo caminho acima com um banco Neon separado
+(ex.: projeto `casafro-teste`). Na Vercel, aponte *Settings › Environments › Production › Branch Tracking*
+para o ramo de desenvolvimento. Ao final dos testes, apague o banco de teste e crie o oficial do zero.
+
 ### Backup
 
 Além da restauração do Neon, gere cópias próprias periodicamente (ex.: após cada fechamento):
