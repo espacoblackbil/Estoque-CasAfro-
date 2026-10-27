@@ -1,11 +1,12 @@
 /** Aplica as migrações pendentes no banco de DATABASE_URL. Uso: npm run db:migrate */
+import { urlDoBanco } from "../src/server/db/url";
 import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import path from "node:path";
 
 async function main() {
-  const url = process.env.DATABASE_URL;
+  const url = urlDoBanco();
   if (!url) {
     // no build sem banco (ex.: CI de tipos), apenas segue
     if (process.argv.includes("--se-configurado")) return console.log("DATABASE_URL ausente: migrações não aplicadas.");

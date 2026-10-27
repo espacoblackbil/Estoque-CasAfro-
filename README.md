@@ -46,7 +46,7 @@ Teste ponta a ponta no navegador (requer `playwright` instalado): veja as instru
 1. **Banco** — crie um projeto no [Neon](https://neon.tech) (PostgreSQL gratuito, persistente, com restauração
    point-in-time). Copie a *connection string* com `sslmode=require`.
 2. **Aplicação** — importe este repositório na [Vercel](https://vercel.com) e defina as variáveis:
-   - `DATABASE_URL` — a connection string do Neon;
+   - `DATABASE_URL` — a connection string do Neon (ou instale a integração Neon pelo Marketplace da Vercel com o prefixo `NEON`, que cria `NEON_URL`; ela tem prioridade);
    - `SETUP_TOKEN` — um texto longo e aleatório (protege a criação do primeiro administrador).
    O `npm run build` aplica as migrações automaticamente antes de compilar.
 3. Acesse `https://<seu-projeto>.vercel.app/setup`, informe o `SETUP_TOKEN` e crie o administrador principal.

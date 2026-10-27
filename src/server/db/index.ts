@@ -2,6 +2,7 @@ import path from "node:path";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { ExtractTablesWithRelations } from "drizzle-orm";
 import * as schema from "./schema";
+import { urlDoBanco } from "./url";
 
 export { schema };
 export type DB = PgDatabase<PgQueryResultHKT, typeof schema, ExtractTablesWithRelations<typeof schema>>;
@@ -32,11 +33,11 @@ const globalRef = globalThis as unknown as { __casafroDb?: Promise<DB> };
 /** Conexão única por processo. */
 export function getDb(): Promise<DB> {
   if (!globalRef.__casafroDb) {
-    const url = process.env.DATABASE_URL;
+    const url = urlDoBanco();
     if (url) {
       globalRef.__casafroDb = conectarPostgres(url);
     } else if (process.env.NODE_ENV === "production") {
-      throw new Error("DATABASE_URL não configurada: produção exige banco persistente.");
+      throw new Error("Banco não configurado (DATABASE_URL ou NEON_URL): produção exige banco persistente.");
     } else {
       globalRef.__casafroDb = conectarPglite(path.join(process.cwd(), ".data", "pglite"));
     }

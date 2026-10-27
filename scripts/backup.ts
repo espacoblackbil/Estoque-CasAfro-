@@ -3,11 +3,12 @@
  * Uso: DATABASE_URL=... npm run backup
  * Restauração: pg_restore --clean --if-exists -d "$DATABASE_URL" backups/arquivo.dump
  */
+import { urlDoBanco } from "../src/server/db/url";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
-const url = process.env.DATABASE_URL;
+const url = urlDoBanco();
 if (!url) {
   console.error("Defina DATABASE_URL.");
   process.exit(1);
