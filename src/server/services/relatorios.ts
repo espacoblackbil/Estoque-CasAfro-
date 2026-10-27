@@ -19,6 +19,7 @@ import {
 import { ErroNegocio } from "../erros";
 import { formatarBRL, formatarPercentual } from "@/domain/money";
 import { formatarData, formatarDataHora } from "@/domain/datas";
+import { rotuloMovimento } from "@/domain/rotulos";
 import { renderizarPdf, type Bloco, type ModeloDocumento } from "../pdf/documento";
 import { obterConfiguracoes } from "./configuracoes";
 import { extratoComissoes, resumoComissoes } from "./comissoes";
@@ -31,30 +32,9 @@ import { exigirAdmin, type Ator } from "./permissoes";
 export type TipoRelatorio = "geral" | "fornecedor" | "colaborador" | "comissoes";
 
 const R = formatarBRL;
-const ROTULO_TIPO: Record<string, string> = {
-  saldo_inicial: "Saldo inicial",
-  entrada: "Entrada",
-  venda: "Venda",
-  consumo_interno: "Consumo interno",
-  perda: "Perda",
-  dano: "Dano",
-  devolucao_fornecedor: "Devolução ao fornecedor",
-  ajuste_inventario: "Ajuste de inventário",
-  devolucao_venda: "Devolução de venda",
-};
-const ROTULO_CLASSIF: Record<string, string> = {
-  perda: "perda",
-  dano: "dano",
-  consumo_interno: "consumo interno",
-  devolucao_fornecedor: "devolução ao fornecedor",
-  erro_registro: "erro de registro",
-};
+export { rotuloMovimento };
 const ROTULO_FORMA: Record<string, string> = { pix: "Pix", dinheiro: "Dinheiro", debito: "Débito", credito: "Crédito" };
 
-export function rotuloMovimento(tipo: string, classificacao?: string | null) {
-  const base = ROTULO_TIPO[tipo] ?? tipo;
-  return classificacao ? `${base} (${ROTULO_CLASSIF[classificacao] ?? classificacao})` : base;
-}
 
 // ───────────────────────────── Dados ─────────────────────────────
 

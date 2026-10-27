@@ -5,7 +5,7 @@
   "description": "CasAfro Gestão — estoque, vendas, consignações, comissões e relatórios",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "tsx scripts/migrate.ts --se-configurado && next build",
     "start": "next start",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -27,6 +27,7 @@
     "pg": "^8.23.1",
     "react": "^19.1.10",
     "react-dom": "^19.1.10",
+    "server-only": "^0.0.1",
     "zod": "^4.1.12"
   },
   "devDependencies": {

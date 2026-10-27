@@ -164,3 +164,10 @@ export async function autorizacaoAdmin(db: DB, login: string, senha: string): Pr
 }
 
 export { exigirAdmin };
+
+/** Troca da própria senha, exigindo a senha atual. */
+export async function alterarPropriaSenha(db: DB, ator: Ator, atual: string, nova: string) {
+  const [u] = await db.select({ login: usuarios.login }).from(usuarios).where(eq(usuarios.id, ator.id));
+  if (!u || !(await verificarCredenciais(db, u.login, atual))) throw new ErroNegocio("Senha atual incorreta.");
+  await editarUsuario(db, ator, ator.id, { novaSenha: nova });
+}

@@ -102,3 +102,15 @@ describe("M1 · autenticação, perfis e auditoria", () => {
     await expect(c.db.execute(sql`delete from usuarios where login = 'carla'`)).rejects.toThrow();
   });
 });
+
+describe("M1 · troca da própria senha", () => {
+  it("exige a senha atual e encerra as sessões", async () => {
+    const c = await novoCenario();
+    const { alterarPropriaSenha } = await import("@/server/services/usuarios");
+    const s = await entrar(c.db, "carla", "senha123");
+    await expect(alterarPropriaSenha(c.db, c.colab, "errada", "novasenha")).rejects.toThrow("incorreta");
+    await alterarPropriaSenha(c.db, c.colab, "senha123", "novasenha");
+    expect(await atorDaSessao(c.db, s.token)).toBeNull();
+    expect((await entrar(c.db, "carla", "novasenha")).ator.id).toBe(c.colab.id);
+  });
+});

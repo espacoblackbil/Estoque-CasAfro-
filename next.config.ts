@@ -4,6 +4,8 @@ const nextConfig: NextConfig = {
   // pdfkit lê arquivos de fonte do disco; PGlite carrega WASM. Ambos ficam fora do bundle.
   serverExternalPackages: ["pdfkit", "@electric-sql/pglite", "pg"],
   poweredByHeader: false,
+  // o logotipo padrão é lido do disco pelo gerador de PDF (funções serverless não enxergam /public)
+  outputFileTracingIncludes: { "/**": ["./public/logo-casafro-header.jpg"] },
   async headers() {
     return [
       {
