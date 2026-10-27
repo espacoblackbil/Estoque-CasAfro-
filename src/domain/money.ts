@@ -39,6 +39,7 @@ export function ratear(total: number, pesos: number[]): number[] {
 }
 
 export function formatarBRL(cents: number): string {
+  if (cents === 0) cents = 0; // evita "-R$ 0,00" para -0
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
