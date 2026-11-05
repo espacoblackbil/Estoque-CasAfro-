@@ -163,7 +163,23 @@ details[open] > summary { margin-bottom: 12px; }
   width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 8px;
   padding: 12px; border: 1px solid var(--linha); border-radius: 12px; background: #fff; font: inherit; cursor: pointer; text-align: left; margin-bottom: 8px;
 }
+.produto-btn { color: var(--tinta); -webkit-tap-highlight-color: transparent; }
 .produto-btn:hover { border-color: var(--verde); background: var(--verde-claro); }
+.produto-btn:active { transform: scale(0.98); }
+.produto-btn.na-venda { border: 2px solid var(--verde-escuro); background: var(--verde-claro); }
+.lista-produtos { margin-top: 12px; max-height: 42vh; overflow-y: auto; }
+.barra-venda {
+  position: fixed; left: 8px; right: 8px; bottom: calc(var(--nav-altura) + 8px); z-index: 25;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 12px; border-radius: 14px; background: var(--tinta); color: #fff;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.25); font-variant-numeric: tabular-nums;
+}
+.pdv { padding-bottom: 64px; }
+@media (min-width: 900px) {
+  .lista-produtos { max-height: 520px; }
+  .barra-venda { display: none; }
+  .pdv { padding-bottom: 0; }
+}
 .qtd { display: inline-flex; align-items: center; gap: 4px; }
 .qtd button { width: 36px; height: 36px; border-radius: 10px; border: 1px solid #d6d3cb; background: #fff; font-size: 1.1rem; cursor: pointer; }
 .qtd input { width: 56px; text-align: center; padding: 6px; }

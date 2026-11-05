@@ -127,18 +127,31 @@ export function Pdv(props: { produtos: ProdutoPublico[]; modalidades?: Record<nu
       <section className="cartao">
         <label htmlFor="busca">Buscar produto</label>
         <input id="busca" placeholder="Digite o nome…" value={busca} onChange={(e) => setBusca(e.target.value)} autoComplete="off" />
-        <div style={{ marginTop: 12, maxHeight: 520, overflowY: "auto" }}>
-          {filtrados.map((p) => (
-            <button type="button" key={p.id} className="produto-btn" onClick={() => adicionar(p)}>
-              <span><strong>{p.nome}</strong><br /><small>{p.categoria ?? "Sem categoria"} · {p.quantidade} em estoque {p.quantidade <= 0 && <span className="selo rosa">sem saldo</span>}</small></span>
-              <strong className="num">{R(p.precoVendaCents)}</strong>
-            </button>
-          ))}
+        <div className="lista-produtos">
+          {filtrados.map((p) => {
+            const naVenda = linhas.find((l) => l.produto.id === p.id)?.qtd ?? 0;
+            return (
+              <button type="button" key={p.id} className={`produto-btn ${naVenda ? "na-venda" : ""}`} onClick={() => adicionar(p)}>
+                <span><strong>{p.nome}</strong><br /><small>{p.categoria ?? "Sem categoria"} · {p.quantidade} em estoque {p.quantidade <= 0 && <span className="selo rosa">sem saldo</span>}</small>
+                  {naVenda > 0 && <><br /><span className="selo verde">✓ {naVenda} na venda</span></>}</span>
+                <strong className="num">{R(p.precoVendaCents)}</strong>
+              </button>
+            );
+          })}
           {filtrados.length === 0 && <p className="suave">Nenhum produto encontrado.</p>}
         </div>
       </section>
 
-      <section className="cartao carrinho">
+      {linhas.length > 0 && (
+        <div className="barra-venda" role="status">
+          <span><strong>{linhas.reduce((a, l) => a + l.qtd, 0)} item(ns)</strong> · {R(total)}</span>
+          <button type="button" className="btn primario pequeno" onClick={() => document.getElementById("carrinho")?.scrollIntoView({ behavior: "smooth", block: "start" })}>
+            Concluir venda ↓
+          </button>
+        </div>
+      )}
+
+      <section className="cartao carrinho" id="carrinho">
         <h2>Itens</h2>
         {linhas.length === 0 && <p className="suave">Toque em um produto para adicionar.</p>}
         <ul className="lista">

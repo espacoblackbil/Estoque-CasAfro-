@@ -103,7 +103,7 @@ const OUT = process.argv[2];
   await page.fill("input[placeholder='0,00'] >> nth=1", "100,00");
   await page.click("button:has-text('restante') >> nth=1");
   await shot("01-pdv");
-  await page.click("button:has-text('Concluir venda')");
+  await page.click("button:has-text('Concluir venda ·')");
   await page.waitForSelector(".aviso.ok");
   etapa("venda com desconto e pagamento dividido (Pix + dinheiro)");
 
@@ -116,7 +116,7 @@ const OUT = process.argv[2];
   await page.fill("input[aria-label='Comissão da época (%)']", "8");
   await page.click("button:has-text('restante') >> nth=0");
   await shot("02-pdv-retroativa");
-  await page.click("button:has-text('Concluir venda')");
+  await page.click("button:has-text('Concluir venda ·')");
   await page.waitForSelector(".aviso.ok");
   await page.click("text=Ver venda");
   await page.waitForSelector("text=Itens");
