@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getDb } from "@/server/db";
-import { executarAcao, exigirSessaoAdmin } from "@/server/sessao";
-import { editarProduto, listarCategorias, listarFornecedores, obterProdutoAdmin } from "@/server/services/cadastros";
+import { exigirSessaoAdmin } from "@/server/sessao";
+import { impedimentoTrocaModalidade, listarCategorias, listarFornecedores, obterProdutoAdmin } from "@/server/services/cadastros";
 import { listarMovimentacoes } from "@/server/services/estoque";
 import { listarAuditoria } from "@/server/services/auditoria";
 import { rotuloMovimento } from "@/domain/rotulos";
@@ -9,15 +9,6 @@ import { formatarBRL as R } from "@/domain/money";
 import { formatarData, formatarDataHora } from "@/domain/datas";
 import { ProdutoForm } from "@/components/ProdutoForm";
 import { Mensagens, lerParams, type BuscaParams } from "@/components/Mensagens";
-import { justificativaDoForm, produtoDoForm } from "../dados";
-
-async function acaoEditar(fd: FormData) {
-  "use server";
-  const ator = await exigirSessaoAdmin();
-  const db = await getDb();
-  const id = Number(fd.get("id"));
-  await executarAcao(() => editarProduto(db, ator, id, produtoDoForm(fd), justificativaDoForm(fd)), `/produtos/${id}`, "Produto atualizado.");
-}
 
 export default async function Produto({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: BuscaParams }) {
   const ator = await exigirSessaoAdmin();
@@ -40,7 +31,7 @@ export default async function Produto({ params, searchParams }: { params: Promis
         <Link className="btn" href={`/estoque?produto=${p.id}`}>Movimentar estoque</Link>
       </div>
       {p.pendenteQtd > 0 && <div className="aviso atencao">{p.pendenteQtd} unidade(s) vendidas sem saldo com custo estimado de {R(p.pendenteCustoCents)}. O ajuste será lançado na próxima entrada.</div>}
-      <ProdutoForm acao={acaoEditar} categorias={categorias} fornecedores={fornecedores} produto={p} temMovimentacoes={movs.length > 0} />
+      <ProdutoForm categorias={categorias} fornecedores={fornecedores} produto={p} bloqueioModalidade={await impedimentoTrocaModalidade(db, p)} />
       <section className="cartao tabela-wrap">
         <h2>Histórico de entradas e saídas</h2>
         <table>

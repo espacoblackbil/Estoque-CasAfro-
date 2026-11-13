@@ -8,7 +8,8 @@ O roteiro `scripts/e2e.cjs` repete os fluxos principais no navegador (celular), 
 | §2 | Interface minimalista, cores pastel, mobile-first | `src/app/globals.css`, `src/components/Nav.tsx`, `src/app/(app)/**` | verificação visual (Playwright, celular 390px e computador) |
 | §3 | Perfis principal/admin/colaborador; senhas com hash | `services/usuarios.ts`, `services/permissoes.ts` | `m1` — autenticação, perfis; `m4` — critério 9 |
 | §3.3 | Colaborador sem custos/lucros/repasses/comissões alheias | `cadastros.listarProdutosPublico`, `vendas.obterVenda`, `comissoes.extratoComissoes` | `m2` — visão restrita; `m4` — critério 9; `m7` — dashboard bloqueado; `m8` — relatórios bloqueados |
-| §4 | Cadastro de produto, modalidade única, comissão padrão 0 | `services/cadastros.ts` | `m2` |
+| §4 | Cadastro de produto, modalidade única, comissão padrão 0 | `services/cadastros.ts`, `components/ProdutoForm.tsx` | `m2`; `scripts/e2e.cjs` |
+| §4 | Correção de modalidade sem misturar mercadoria | `cadastros.impedimentoTrocaModalidade` | `m2` — troca de modalidade; `scripts/e2e.cjs` |
 | §4 | Estoque mínimo global | `configuracoes.estoqueMinimo`, `financeiro.dashboard` | `m1`, `m7` |
 | §5 | Fornecedor com CPF/CNPJ | `cadastros.salvarFornecedor`, `documentoValido` | `m2` |
 | §5 | Custo médio ponderado (próprio) | `estoque.lancarEntrada` | `m3` — custo médio |

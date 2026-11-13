@@ -2,14 +2,17 @@ import { campo, campoOpcional, dinheiro, idOuNulo, marcado, percentual } from "@
 import type { DadosProduto } from "@/server/services/cadastros";
 
 export function produtoDoForm(fd: FormData): DadosProduto {
+  const modalidade = campo(fd, "modalidade") === "consignado" ? "consignado" : "proprio";
+  // Um único campo de valor: custo unitário (próprio) ou repasse por unidade (consignado).
+  const valor = dinheiro(fd, "valor");
   return {
     nome: campo(fd, "nome"),
     categoriaId: idOuNulo(fd, "categoriaId"),
     fornecedorId: idOuNulo(fd, "fornecedorId"),
-    modalidade: campo(fd, "modalidade") === "consignado" ? "consignado" : "proprio",
+    modalidade,
     precoVendaCents: dinheiro(fd, "preco"),
-    custoCents: dinheiro(fd, "custo"),
-    repasseCents: dinheiro(fd, "repasse"),
+    custoCents: modalidade === "proprio" ? valor : 0,
+    repasseCents: modalidade === "consignado" ? valor : 0,
     comissaoBps: percentual(fd, "comissao"),
     ativo: marcado(fd, "ativo"),
   };

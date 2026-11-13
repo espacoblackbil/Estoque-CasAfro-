@@ -88,6 +88,7 @@ Pontos em que a especificação admite mais de uma leitura. Em todos, escolhemos
 | D12 | Retificação (§11.4) | Cada relatório guarda o hash dos dados. Reemitir sem mudanças devolve a mesma versão; com mudanças cria a versão *n+1* marcada "RETIFICADO", com a tabela de diferenças e os registros de auditoria que a originaram. A posição atual do estoque é um retrato do momento e não entra no hash. |
 | D13 | Faturamento no painel (§10) | "Faturamento" mostra a receita líquida (após descontos e devoluções); o bruto aparece como detalhe. |
 | D15 | Tentativas de login (§15) | Após 5 senhas erradas em 15 minutos, o usuário fica bloqueado por 15 minutos (contagem no banco, válida em hospedagem serverless). Um administrador pode redefinir a senha. |
+| D16 | Troca de modalidade (§4) | Tratada como correção de cadastro, com justificativa e auditoria (`trocar_modalidade`). Permitida quando o produto não tem estoque, ou quando ainda não gerou valor financeiro (só entradas, saldo inicial, devoluções ao fornecedor ou ajustes sem efeito). Vendas e movimentações já gravadas mantêm a modalidade da época; virando próprio com estoque, é preciso informar o custo unitário. |
 | D14 | Quantidades | Sempre unidades inteiras (spec exige para consumo interno; adotado para todo o estoque, já que não há fracionamento). |
 
 ## Segurança

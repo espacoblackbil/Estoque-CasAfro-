@@ -70,3 +70,32 @@ describe("M2 · cadastros", () => {
     expect(busca.map((p) => p.nome)).toEqual(["Óleo de Rícino"]);
   });
 });
+
+describe("M2 · troca de modalidade (correção de cadastro)", () => {
+  it("permite trocar quando só há entradas; exige justificativa e custo; preserva o histórico", async () => {
+    const c = await novoCenario();
+    const { registrarEntrada, registrarSaida } = await import("@/server/services/estoque");
+    const { movimentacoes, produtos } = await import("@/server/db/schema");
+    const { eq } = await import("drizzle-orm");
+    const f = await salvarFornecedor(c.db, c.admin, { nome: "Floresça" });
+    const p = await criarProduto(c.db, c.admin, { nome: "Óleo de Alecrim", modalidade: "consignado", fornecedorId: f.id, precoVendaCents: 5000, repasseCents: 3800 });
+    await registrarEntrada(c.db, c.admin, { produtoId: p.id, quantidade: 4 });
+    const base = { nome: "Óleo de Alecrim", modalidade: "proprio" as const, fornecedorId: f.id, precoVendaCents: 5000, custoCents: 2500 };
+    await expect(editarProduto(c.db, c.admin, p.id, base)).rejects.toThrow("justificativa");
+    await expect(editarProduto(c.db, c.admin, p.id, { ...base, custoCents: 0 }, "cadastrado errado")).rejects.toThrow("custo unitário");
+    await editarProduto(c.db, c.admin, p.id, base, "Cadastrado como consignado por engano");
+    const [depois] = await c.db.select().from(produtos).where(eq(produtos.id, p.id));
+    expect(depois).toMatchObject({ modalidade: "proprio", custoMedioCents: 2500, repasseCents: 0, quantidade: 4 });
+    const [entrada] = await c.db.select().from(movimentacoes).where(eq(movimentacoes.produtoId, p.id));
+    expect(entrada.modalidade).toBe("consignado"); // histórico congelado
+    const [log] = await listarAuditoria(c.db, c.admin, { entidade: "produto" });
+    expect(log.acao).toBe("trocar_modalidade");
+
+    // depois de uma saída com valor e com estoque, a troca é recusada
+    await registrarSaida(c.db, c.admin, { produtoId: p.id, tipo: "perda", quantidade: 1 });
+    await expect(editarProduto(c.db, c.admin, p.id, { nome: "Óleo de Alecrim", modalidade: "consignado", fornecedorId: f.id, precoVendaCents: 5000, repasseCents: 3800 }, "voltar")).rejects.toThrow("zere o estoque");
+    // com o estoque zerado, volta a ser permitida
+    await registrarSaida(c.db, c.admin, { produtoId: p.id, tipo: "devolucao_fornecedor", quantidade: 3 });
+    await editarProduto(c.db, c.admin, p.id, { nome: "Óleo de Alecrim", modalidade: "consignado", fornecedorId: f.id, precoVendaCents: 5000, repasseCents: 3800 }, "Passou a ser consignado");
+  });
+});

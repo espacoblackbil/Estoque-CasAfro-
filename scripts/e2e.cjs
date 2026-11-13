@@ -75,9 +75,37 @@ const OUT = process.argv[2];
     await page.click("text=Cadastrar produto");
     await resultado("produto");
   };
-  await produto("Óleo de Coco 120ml", "consignado", "50,00", { repasse: "30,00", comissao: "10" });
+  await produto("Óleo de Coco 120ml", "consignado", "50,00", { valor: "30,00", comissao: "10" });
   await produto("Máscara Nutritiva 500g", "proprio", "60,00", { comissao: "5" });
   etapa("produtos próprio e consignado");
+
+  // erro no formulário não apaga nada (nem a modalidade e o fornecedor escolhidos)
+  await page.goto(B + "/produtos/novo");
+  await page.fill("input[name=nome]", "Body Splash");
+  await page.selectOption("select[name=modalidade]", "consignado");
+  await page.selectOption("select[name=fornecedorId]", { label: "Ayo Cosméticos" });
+  await page.fill("input[name=preco]", "80,0x");
+  await page.fill("input[name=valor]", "59,90");
+  await page.click("text=Cadastrar produto");
+  await page.waitForSelector(".aviso.erro");
+  assert.equal(await page.inputValue("select[name=modalidade]"), "consignado");
+  assert.notEqual(await page.inputValue("select[name=fornecedorId]"), "");
+  assert.equal(await page.inputValue("input[name=valor]"), "59,90");
+  await page.fill("input[name=preco]", "80,00");
+  await page.click("text=Cadastrar produto");
+  await page.waitForSelector(".aviso.ok");
+  assert.equal(await page.inputValue("select[name=modalidade]"), "consignado");
+  etapa("erro no cadastro mantém os dados digitados");
+
+  // correção de cadastro: trocar a modalidade pela tela de edição
+  await produto("Óleo de Alecrim", "consignado", "50,00", { valor: "38,00" });
+  await page.selectOption("select[name=modalidade]", "proprio");
+  await page.fill("input[name=valor]", "25,00");
+  await page.fill("input[name=justificativa]", "Cadastrado como consignado por engano");
+  await page.click("text=Salvar alterações");
+  await page.waitForSelector(".aviso.ok:has-text('Produto atualizado')");
+  assert.equal(await page.inputValue("select[name=modalidade]"), "proprio");
+  etapa("troca de modalidade com justificativa");
 
   const entrada = async (nome, qtd, custo) => {
     await page.goto(B + "/estoque");

@@ -152,11 +152,16 @@ export async function editarProduto(db: DB, ator: Ator, id: number, dados: Dados
   return db.transaction(async (tx) => {
     const [antes] = await tx.select().from(produtos).where(eq(produtos.id, id)).for("update");
     if (!antes) throw new ErroNegocio("Produto não encontrado.");
-    if (v.modalidade !== antes.modalidade) {
-      const [mov] = await tx.select({ id: movimentacoes.id }).from(movimentacoes).where(eq(movimentacoes.produtoId, id)).limit(1);
-      if (mov) throw new ErroNegocio("A modalidade não pode mudar depois de haver movimentações. Cadastre um novo produto.");
+    const mudouModalidade = v.modalidade !== antes.modalidade;
+    if (mudouModalidade) {
+      const motivo = await impedimentoTrocaModalidade(tx, antes);
+      if (motivo) throw new ErroNegocio(motivo);
+      if (!justificativa?.trim()) throw new ErroNegocio("Trocar a modalidade exige justificativa.");
+      if (v.modalidade === "proprio" && antes.quantidade > 0 && v.custoCents <= 0) {
+        throw new ErroNegocio("Informe o custo unitário das unidades em estoque, que passam a ser próprias.");
+      }
     }
-    const custoMudou = v.modalidade === "proprio" && v.custoCents !== antes.custoMedioCents;
+    const custoMudou = !mudouModalidade && v.modalidade === "proprio" && v.custoCents !== antes.custoMedioCents;
     if (custoMudou && !justificativa?.trim()) {
       throw new ErroNegocio("Alterar manualmente o custo médio exige justificativa.");
     }
@@ -172,9 +177,31 @@ export async function editarProduto(db: DB, ator: Ator, id: number, dados: Dados
       ativo: v.ativo,
     };
     await tx.update(produtos).set(novo).where(eq(produtos.id, id));
-    await auditar(tx, ator, { acao: "editar_produto", entidade: "produto", entidadeId: id, antes, depois: novo, justificativa });
+    await auditar(tx, ator, { acao: mudouModalidade ? "trocar_modalidade" : "editar_produto", entidade: "produto", entidadeId: id, antes, depois: novo, justificativa });
     return { ...antes, ...novo };
   });
+}
+
+/**
+ * Troca de modalidade (correção de cadastro). Permitida quando o produto ainda não gerou valor
+ * financeiro (só entradas, saldo inicial, devoluções ao fornecedor ou ajustes sem efeito) ou
+ * quando não há unidades em estoque. Vendas e movimentações já gravadas mantêm a modalidade da
+ * época, então um mesmo lote nunca mistura mercadoria própria e consignada (spec §4).
+ * Retorna o motivo do impedimento, ou null.
+ */
+export async function impedimentoTrocaModalidade(tx: DB, p: typeof produtos.$inferSelect): Promise<string | null> {
+  if (p.pendenteQtd > 0) return "Há unidades vendidas sem estoque aguardando regularização; registre a entrada antes de trocar a modalidade.";
+  if (p.quantidade === 0) return null;
+  const [r] = await tx
+    .select({ n: sql<number>`count(*)::int` })
+    .from(movimentacoes)
+    .where(and(
+      eq(movimentacoes.produtoId, p.id),
+      eq(movimentacoes.anulada, false),
+      sql`(${movimentacoes.tipo} in ('venda','devolucao_venda') or ${movimentacoes.repasseTotalCents} <> 0 or ${movimentacoes.custoTotalCents} <> 0 or ${movimentacoes.ajusteCustoCents} <> 0)`,
+    ));
+  if (r.n === 0) return null;
+  return `Este produto já tem vendas ou saídas com valor e ainda ${p.quantidade} unidade(s) em estoque. Para trocar a modalidade, zere o estoque (devolução ao fornecedor ou ajuste de inventário) ou cadastre um novo produto.`;
 }
 
 /** Visão para colaboradores: sem custo, repasse, comissão ou fornecedor (spec §3.3). */
