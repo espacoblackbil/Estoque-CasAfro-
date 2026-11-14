@@ -12,7 +12,7 @@ O roteiro `scripts/e2e.cjs` repete os fluxos principais no navegador (celular), 
 | §4 | Correção de modalidade sem misturar mercadoria | `cadastros.impedimentoTrocaModalidade` | `m2` — troca de modalidade; `scripts/e2e.cjs` |
 | §4 | Estoque mínimo global | `configuracoes.estoqueMinimo`, `financeiro.dashboard` | `m1`, `m7` |
 | §5 | Fornecedor com CPF/CNPJ | `cadastros.salvarFornecedor`, `documentoValido` | `m2` |
-| §5 | Custo médio ponderado (próprio) | `estoque.lancarEntrada` | `m3` — custo médio |
+| §5 | Custo médio ponderado (próprio) | `estoque.lancarEntrada`; entrada com custo do cadastro e prévia (`components/EntradaForm.tsx`) | `m3` — custo médio; custo do cadastro; `scripts/e2e.cjs` |
 | §5 | Repasse em venda/consumo/perda/dano; não em devolução ao fornecedor | `estoque.lancarSaida`, `EFEITO_CLASSIFICACAO` | `m3` — consignado; `m7` — critério 3; `m8` — fornecedor |
 | §6 | 8 tipos de movimentação com tipo, qtd, datas e usuário | `schema.movimentacoes`, `services/estoque.ts`, `vendas.devolverVenda` | `m3`, `m4` |
 | §6 | Justificativa obrigatória em correções | `ajustarInventario`, `anularMovimentacao`, `corrigirMovimentacao` | `m3` |

@@ -21,7 +21,7 @@ describe("M3 · estoque", () => {
 
   it("entradas calculam custo médio ponderado", async () => {
     const p = await criarProduto(c.db, c.admin, { nome: "Máscara Própria", modalidade: "proprio", precoVendaCents: 6000 });
-    await expect(registrarEntrada(c.db, c.admin, { produtoId: p.id, quantidade: 10 })).rejects.toThrow("custo unitário");
+    await expect(registrarEntrada(c.db, c.admin, { produtoId: p.id, quantidade: 10 })).rejects.toThrow("custo por unidade");
     await registrarEntrada(c.db, c.admin, { produtoId: p.id, quantidade: 10, custoUnitarioCents: 300 });
     await registrarEntrada(c.db, c.admin, { produtoId: p.id, quantidade: 10, custoUnitarioCents: 400 });
     expect(await prod(p.id)).toMatchObject({ quantidade: 20, custoMedioCents: 350 });
@@ -132,5 +132,17 @@ describe("M3 · estoque", () => {
     await expect(c.db.execute(sql`update movimentacoes set quantidade = 99`)).rejects.toThrow();
     await expect(c.db.execute(sql`update movimentacoes set anulada = false where anulada = true`)).rejects.toThrow();
     expect(await verificarConsistencia(c.db)).toEqual([]);
+  });
+});
+
+describe("M3 · custo do cadastro na primeira entrada", () => {
+  it("entrada sem custo informado usa o custo do cadastro; com o mesmo custo, nada muda", async () => {
+    const c = await novoCenario();
+    const p = await criarProduto(c.db, c.admin, { nome: "Óleo de Alecrim", modalidade: "proprio", precoVendaCents: 5000, custoCents: 2500 });
+    const m = await registrarEntrada(c.db, c.admin, { produtoId: p.id, quantidade: 6 });
+    expect(m.custoUnitarioCents).toBe(2500);
+    await registrarEntrada(c.db, c.admin, { produtoId: p.id, quantidade: 4, custoUnitarioCents: 2500 });
+    const [depois] = await c.db.select().from(produtos).where(eq(produtos.id, p.id));
+    expect(depois).toMatchObject({ quantidade: 10, custoMedioCents: 2500 });
   });
 });

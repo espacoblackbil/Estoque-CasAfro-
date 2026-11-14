@@ -10,6 +10,7 @@ import { rotuloMovimento, ROTULO_TIPO } from "@/domain/rotulos";
 import { formatarBRL as R } from "@/domain/money";
 import { formatarData, hoje } from "@/domain/datas";
 import { campo, campoOpcional, dinheiroOpcional, inteiro } from "@/app/formularios";
+import { EntradaForm } from "@/components/EntradaForm";
 import { Mensagens, lerParams, type BuscaParams } from "@/components/Mensagens";
 
 const voltar = (fd: FormData) => `/estoque${fd.get("produtoId") ? `?produto=${fd.get("produtoId")}` : ""}`;
@@ -102,16 +103,7 @@ export default async function Estoque({ searchParams }: { searchParams: BuscaPar
 
       <details open={!ok && !erro}>
         <summary>Entrada de mercadoria</summary>
-        <form action={acaoEntrada}>
-          {seletor}
-          <div className="linha-campos">
-            <div className="campo"><label>Quantidade</label><input name="quantidade" type="number" min={1} inputMode="numeric" required /></div>
-            <div className="campo"><label>Custo unitário (R$)</label><input name="custo" inputMode="decimal" /><div className="ajuda">Obrigatório para próprios (custo médio ponderado).</div></div>
-            {data}
-          </div>
-          <div className="campo"><label>Observação</label><input name="justificativa" placeholder="Ex.: nota 123" /></div>
-          <button className="btn primario">Registrar entrada</button>
-        </form>
+        <EntradaForm acao={acaoEntrada} produtos={produtos} produtoInicial={produtoId} hoje={dia} />
       </details>
 
       <details>

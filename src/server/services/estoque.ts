@@ -240,8 +240,9 @@ export async function registrarEntrada(db: DB, ator: Ator, dados: z.input<typeof
   const data = validarDataEfetiva(v.dataEfetiva);
   const exec = async (tx: DB) => {
     const p = await travarProduto(tx, v.produtoId);
-    if (p.modalidade === "proprio" && v.custoUnitarioCents === undefined) {
-      throw new ErroNegocio("Informe o custo unitário da compra.");
+    // Sem custo informado, vale o custo atual do produto (o do cadastro, na primeira entrada).
+    if (p.modalidade === "proprio" && v.custoUnitarioCents === undefined && p.custoMedioCents <= 0) {
+      throw new ErroNegocio("Informe o custo por unidade da compra.");
     }
     const mov = await lancarEntrada(tx, ator, p, {
       tipo: "entrada",

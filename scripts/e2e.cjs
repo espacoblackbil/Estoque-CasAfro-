@@ -121,6 +121,21 @@ const OUT = process.argv[2];
   await entrada("Máscara Nutritiva", "10", "20,00");
   etapa("entradas de estoque");
 
+  // o custo do cadastro vem preenchido na entrada e permanece na lista de produtos
+  await page.goto(B + "/estoque");
+  const sel0 = "details:has(summary:has-text('Entrada'))";
+  const alecrim = await page.locator(`${sel0} select[name=produtoId] option`, { hasText: "Óleo de Alecrim" }).getAttribute("value");
+  await page.selectOption(`${sel0} select[name=produtoId]`, alecrim);
+  assert.equal(await page.inputValue(`${sel0} input[name=custo]`), "25,00");
+  await page.fill(`${sel0} input[name=quantidade]`, "4");
+  const previa = nbsp(await page.textContent(`${sel0} .aviso.atencao`));
+  assert.match(previa, /4 × R\$ 25,00 = R\$ 100,00/);
+  await page.click("text=Registrar entrada");
+  await resultado("entrada com custo do cadastro");
+  await page.goto(B + "/produtos?q=Alecrim");
+  assert.match(nbsp(await page.textContent("table")), /R\$ 50,00\s*R\$ 25,00/);
+  etapa("custo do cadastro mantido após a entrada (lista de produtos mostra R$ 25,00)");
+
   // ── Venda de hoje com desconto e pagamento dividido ──
   await page.goto(B + "/vender");
   await page.click("button.produto-btn:has-text('Óleo de Coco')");
