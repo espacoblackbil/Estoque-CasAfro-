@@ -90,7 +90,7 @@ export default async function Estoque({ searchParams }: { searchParams: BuscaPar
     <div className="campo"><label>Produto</label>
       <select name="produtoId" defaultValue={produtoId ?? ""} required>
         <option value="" disabled>Selecione…</option>
-        {produtos.map((p) => <option key={p.id} value={p.id}>{p.nome} ({p.modalidade === "consignado" ? "consig." : "próprio"} · {p.quantidade} un)</option>)}
+        {produtos.map((p) => <option key={p.id} value={p.id}>{p.nome} ({p.modalidade === "consignado" ? "consig." : "próprio"} · {p.quantidade} un){p.ativo ? "" : " — INATIVO"}</option>)}
       </select>
     </div>
   );

@@ -4,7 +4,7 @@ import { arred, formatarBRL as R, parseBRL } from "@/domain/money";
 
 interface ProdutoEntrada {
   id: number; nome: string; modalidade: "proprio" | "consignado"; quantidade: number;
-  custoMedioCents: number; repasseCents: number; pendenteQtd: number;
+  custoMedioCents: number; repasseCents: number; pendenteQtd: number; ativo: boolean;
 }
 
 const reais = (c: number) => (c / 100).toFixed(2).replace(".", ",");
@@ -41,9 +41,10 @@ export function EntradaForm(props: { acao: (fd: FormData) => Promise<void>; prod
       <div className="campo"><label>Produto</label>
         <select name="produtoId" value={produtoId} onChange={(e) => escolher(e.target.value)} required>
           <option value="" disabled>Selecione…</option>
-          {props.produtos.map((x) => <option key={x.id} value={x.id}>{x.nome} ({x.modalidade === "consignado" ? "consig." : "próprio"} · {x.quantidade} un)</option>)}
+          {props.produtos.map((x) => <option key={x.id} value={x.id}>{x.nome} ({x.modalidade === "consignado" ? "consig." : "próprio"} · {x.quantidade} un){x.ativo ? "" : " — INATIVO"}</option>)}
         </select>
       </div>
+      {p && !p.ativo && <div className="aviso atencao">Este produto está <strong>inativo</strong>: não aparece na lista de Produtos nem na tela de venda. Para reativar, abra o produto e marque "Produto ativo".</div>}
       <div className="linha-campos">
         <div className="campo"><label>Quantidade</label><input name="quantidade" type="number" min={1} inputMode="numeric" required value={qtd} onChange={(e) => setQtd(e.target.value)} /></div>
         {proprio ? (

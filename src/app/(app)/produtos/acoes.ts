@@ -1,7 +1,7 @@
 "use server";
 import { redirect } from "next/navigation";
 import { getDb } from "@/server/db";
-import { exigirSessaoAdmin, mensagemDeErro } from "@/server/sessao";
+import { dadosAlterados, exigirSessaoAdmin, mensagemDeErro } from "@/server/sessao";
 import { criarProduto, editarProduto } from "@/server/services/cadastros";
 import { justificativaDoForm, produtoDoForm } from "./dados";
 
@@ -27,5 +27,6 @@ export async function acaoSalvarProduto(_anterior: EstadoProduto, fd: FormData):
     if (!msg) console.error(e);
     return { erro: msg ?? "Não foi possível salvar. Tente novamente." };
   }
+  dadosAlterados();
   redirect(destino);
 }

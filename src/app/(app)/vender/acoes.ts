@@ -1,6 +1,6 @@
 "use server";
 import { getDb } from "@/server/db";
-import { exigirSessao, mensagemDeErro } from "@/server/sessao";
+import { dadosAlterados, exigirSessao, mensagemDeErro } from "@/server/sessao";
 import { ErroMargemNegativa, registrarVenda, type EntradaVenda } from "@/server/services/vendas";
 
 export type RespostaVenda =
@@ -11,6 +11,7 @@ export async function acaoRegistrarVenda(dados: EntradaVenda): Promise<RespostaV
   const ator = await exigirSessao();
   try {
     const r = await registrarVenda(await getDb(), ator, dados);
+    dadosAlterados();
     return { ok: true, vendaId: r.venda.id, duplicada: r.duplicada };
   } catch (e) {
     if (e instanceof ErroMargemNegativa) return { ok: false, erro: e.message, margemNegativa: e.itens.map((i) => ({ nome: i.nome })) };

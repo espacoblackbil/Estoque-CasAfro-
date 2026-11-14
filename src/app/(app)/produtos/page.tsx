@@ -38,7 +38,9 @@ export default async function Produtos({ searchParams }: { searchParams: BuscaPa
     );
   }
 
-  const lista = await listarProdutosAdmin(db, ator, { busca, incluirInativos: inativos });
+  const todos = await listarProdutosAdmin(db, ator, { busca, incluirInativos: true });
+  const lista = inativos ? todos : todos.filter((p) => p.ativo);
+  const ocultos = todos.length - lista.length;
   return (
     <>
       <Mensagens ok={ok} erro={erro} />
@@ -47,6 +49,12 @@ export default async function Produtos({ searchParams }: { searchParams: BuscaPa
         <Link className="btn primario" href="/produtos/novo">＋ Novo produto</Link>
       </div>
       {busc}
+      {ocultos > 0 && (
+        <div className="aviso atencao">
+          {ocultos} produto(s) inativo(s) não aparecem nesta lista.{" "}
+          <Link href={`/produtos?inativos=1${busca ? `&q=${encodeURIComponent(busca)}` : ""}`}><strong>Mostrar inativos</strong></Link>
+        </div>
+      )}
       <section className="cartao tabela-wrap">
         <table>
           <thead><tr><th>Produto</th><th>Modalidade</th><th className="num">Estoque</th><th className="num">Preço</th><th className="num">Custo/repasse</th><th className="num">Comissão</th></tr></thead>

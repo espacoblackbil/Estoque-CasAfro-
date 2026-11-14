@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { ZodError } from "zod";
 import { getDb } from "./db";
 import { ErroNegocio } from "./erros";
@@ -44,6 +45,7 @@ export async function executarAcao<T>(fn: () => Promise<T>, destino: string, suc
   let url: string;
   try {
     const r = await fn();
+    dadosAlterados();
     url = comParam(destino, "ok", typeof sucesso === "function" ? sucesso(r) : sucesso);
   } catch (e) {
     const msg = mensagemDeErro(e);
@@ -55,4 +57,12 @@ export async function executarAcao<T>(fn: () => Promise<T>, destino: string, suc
 
 function comParam(destino: string, k: string, v: string) {
   return `${destino}${destino.includes("?") ? "&" : "?"}${k}=${encodeURIComponent(v)}`;
+}
+
+/**
+ * Depois de qualquer gravação, descarta as páginas guardadas no navegador (inclusive as do
+ * botão "voltar"), para nenhuma lista aparecer desatualizada.
+ */
+export function dadosAlterados() {
+  revalidatePath("/", "layout");
 }
