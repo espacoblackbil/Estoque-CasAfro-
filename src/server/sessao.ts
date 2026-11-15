@@ -30,6 +30,12 @@ export async function exigirSessaoAdmin(): Promise<Ator> {
   return ator;
 }
 
+export async function exigirSessaoPrincipal(): Promise<Ator> {
+  const ator = await exigirSessao();
+  if (ator.papel !== "principal") redirect("/?erro=" + encodeURIComponent("Acesso restrito ao administrador principal."));
+  return ator;
+}
+
 export function mensagemDeErro(e: unknown): string | null {
   if (e instanceof ErroNegocio) return e.message;
   if (e instanceof ZodError) return e.issues[0]?.message ?? "Dados inválidos.";

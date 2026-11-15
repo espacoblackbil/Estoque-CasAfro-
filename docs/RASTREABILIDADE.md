@@ -37,6 +37,13 @@ O roteiro `scripts/e2e.cjs` repete os fluxos principais no navegador (celular), 
 | §15 | Bloqueio após tentativas de senha erradas | `usuarios.entrar`, tabela `tentativas_login` | `m1` — tentativas repetidas; `scripts/e2e.cjs` |
 | §15 | Banco persistente, auth segura, backup | `server/db`, `scripts/backup.ts`, `docs/ARQUITETURA.md` | suíte com `TEST_DATABASE_URL` |
 
+## Adendo v1.1
+
+| Spec | Requisito | Implementação | Testes |
+|---|---|---|---|
+| A1 | Relatório de inventário (geral, por fornecedor, por produto) em PDF | `relatorios.dadosInventario`, `emitirInventario`; Central de Relatórios | `m9` — inventário; `scripts/e2e.cjs` |
+| A2 | Reposição e lucro por fornecedor/categoria/produto, só principal | `services/reposicao.ts`, `src/app/(app)/reposicao`, resumo no Painel | `m9` — reposição (valores conferidos à mão, exclusividade do principal); `scripts/e2e.cjs` |
+
 ## Critérios mínimos de funcionamento (§17)
 
 | # | Critério | Teste |

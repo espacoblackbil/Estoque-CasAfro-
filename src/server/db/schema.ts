@@ -46,7 +46,7 @@ export const classificacaoEnum = pgEnum("classificacao_divergencia", [
 ]);
 export const formaPagamentoEnum = pgEnum("forma_pagamento", ["pix", "dinheiro", "debito", "credito"]);
 export const tipoComissaoEnum = pgEnum("tipo_lancamento_comissao", ["gerada", "estorno", "ajuste_negativo"]);
-export const tipoRelatorioEnum = pgEnum("tipo_relatorio", ["geral", "fornecedor", "colaborador", "comissoes"]);
+export const tipoRelatorioEnum = pgEnum("tipo_relatorio", ["geral", "fornecedor", "colaborador", "comissoes", "inventario"]);
 
 const criadoEm = () => timestamp("criado_em", { withTimezone: true }).notNull().defaultNow();
 
@@ -269,6 +269,8 @@ export const relatorioEmissoes = pgTable("relatorio_emissoes", {
   tipo: tipoRelatorioEnum("tipo").notNull(),
   /** fornecedor_id ou colaborador_id; 0 para geral/comissões. */
   escopoId: integer("escopo_id").notNull().default(0),
+  /** Filtro do relatório de inventário ("", "fornecedor:ID" ou "produto:ID"). */
+  filtro: text("filtro").notNull().default(""),
   inicio: date("inicio", { mode: "string" }).notNull(),
   fim: date("fim", { mode: "string" }).notNull(),
   versao: integer("versao").notNull(),
@@ -280,7 +282,7 @@ export const relatorioEmissoes = pgTable("relatorio_emissoes", {
   pdfBase64: text("pdf_base64").notNull(),
   emitidoPor: integer("emitido_por").notNull().references(() => usuarios.id),
   emitidoEm: timestamp("emitido_em", { withTimezone: true }).notNull().defaultNow(),
-}, (t) => [uniqueIndex("relatorio_versao_uq").on(t.tipo, t.escopoId, t.inicio, t.fim, t.versao)]);
+}, (t) => [uniqueIndex("relatorio_versao_uq").on(t.tipo, t.escopoId, t.filtro, t.inicio, t.fim, t.versao)]);
 
 /** Cancelamentos/devoluções de venda (parciais ou totais), com valores estornados congelados. */
 export const vendaDevolucoes = pgTable("venda_devolucoes", {

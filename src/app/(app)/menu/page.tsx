@@ -9,10 +9,18 @@ const GRUPOS = [
 ];
 
 export default async function Menu() {
-  await exigirSessaoAdmin();
+  const ator = await exigirSessaoAdmin();
   return (
     <>
       <div className="cabecalho-pagina"><h1>Menu</h1></div>
+      {ator.papel === "principal" && (
+        <section className="cartao" style={{ borderColor: "var(--amarelo)" }}>
+          <h2>Só para você</h2>
+          <ul className="lista">
+            <li><Link href="/reposicao"><span className="principal">Reposição e lucro</span><br /><small>Quanto guardar para repor o estoque e quanto é lucro</small></Link><span aria-hidden>›</span></li>
+          </ul>
+        </section>
+      )}
       {GRUPOS.map((g) => (
         <section className="cartao" key={g.titulo}>
           <h2>{g.titulo}</h2>

@@ -201,6 +201,26 @@ const OUT = process.argv[2];
   assert.equal(pdf.headers()["content-type"], "application/pdf");
   etapa("fechamento mensal e download do PDF");
 
+  // ── Relatório de inventário ──
+  await page.selectOption("select[name=escopo]", "fornecedor");
+  await page.selectOption("select[name=fornecedorId] >> nth=0", { label: "Ayo Cosméticos" });
+  await page.click("text=Gerar inventário em PDF");
+  await resultado("inventário");
+  const linhaInv = page.locator("tr", { hasText: "Relatório de inventário" }).first();
+  assert.match(await linhaInv.textContent(), /Fornecedor: Ayo Cosméticos/);
+  const hrefInv = await linhaInv.locator("a:has-text('PDF')").getAttribute("href");
+  assert.equal((await page.request.get(B + hrefInv)).status(), 200);
+  etapa("relatório de inventário por fornecedor em PDF");
+
+  // ── Reposição e lucro (administradora principal) ──
+  await page.goto(B + "/reposicao?mes=2026-09&por=produto");
+  const rep = nbsp(await page.textContent("main"));
+  // setembro: venda retroativa do óleo consignado a R$ 45,00, repasse R$ 28,00, comissão R$ 3,60 → lucro R$ 13,40
+  assert.match(rep, /Seu lucro\s*R\$ 13,40/);
+  assert.match(rep, /Guardar — não gastar\s*R\$ 31,60/);
+  await shot("05-reposicao");
+  etapa("reposição e lucro: guardar R$ 31,60 e lucro R$ 13,40 em setembro");
+
   // ── Colaboradora: acesso restrito ──
   await page.click("button:has-text('Sair')");
   await page.waitForURL(/login/, { waitUntil: "commit" });
@@ -208,7 +228,7 @@ const OUT = process.argv[2];
   await page.waitForSelector("text=Olá, Carla");
   await page.goto(B + "/produtos");
   assert.doesNotMatch(await page.content(), /repasse|custo/i);
-  for (const rota of ["/estoque", "/financeiro", "/relatorios", "/auditoria", "/configuracoes", "/usuarios", "/menu"]) {
+  for (const rota of ["/estoque", "/financeiro", "/reposicao", "/relatorios", "/auditoria", "/configuracoes", "/usuarios", "/menu"]) {
     await page.goto(B + rota);
     assert.equal(new URL(page.url()).pathname, "/", `colaboradora acessou ${rota}`);
   }

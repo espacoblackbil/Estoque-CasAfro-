@@ -35,7 +35,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
           </form>
         </div>
       </header>
-      <Nav admin={ehAdmin(ator)} />
+      <Nav admin={ehAdmin(ator)} principal={ator.papel === "principal"} />
       <main className="conteudo">{children}</main>
     </div>
   );

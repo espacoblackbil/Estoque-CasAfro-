@@ -1,10 +1,11 @@
 import { getDb } from "@/server/db";
 import { executarAcao, exigirSessaoAdmin } from "@/server/sessao";
-import { emitirRelatorio, fechamento, listarEmissoes, type TipoRelatorio } from "@/server/services/relatorios";
-import { listarFornecedores } from "@/server/services/cadastros";
+import { emitirInventario, emitirRelatorio, fechamento, listarEmissoes, type TipoRelatorio } from "@/server/services/relatorios";
+import { listarFornecedores, listarProdutosAdmin } from "@/server/services/cadastros";
 import { listarVendedores } from "@/server/services/usuarios";
 import { formatarData, formatarDataHora, hoje, intervaloDoMes } from "@/domain/datas";
 import { campo, inteiroOpcional } from "@/app/formularios";
+import { ErroNegocio } from "@/server/erros";
 import { Mensagens, lerParams, type BuscaParams } from "@/components/Mensagens";
 
 function periodoDoForm(fd: FormData) {
@@ -24,6 +25,20 @@ async function acaoFechamento(fd: FormData) {
     const retif = novas.filter((x) => x.emissao.retificado).length;
     return `Fechamento: ${r.length} relatório(s); ${novas.length} nova(s) versão(ões)${retif ? `, ${retif} retificada(s)` : ""}; ${r.length - novas.length} sem alteração.`;
   });
+}
+
+async function acaoInventario(fd: FormData) {
+  "use server";
+  const ator = await exigirSessaoAdmin();
+  const db = await getDb();
+  const escopo = campo(fd, "escopo");
+  await executarAcao(async () => {
+    const fornecedorId = escopo === "fornecedor" ? inteiroOpcional(fd, "fornecedorId") : undefined;
+    const produtoId = escopo === "produto" ? inteiroOpcional(fd, "produtoId") : undefined;
+    if (escopo === "fornecedor" && !fornecedorId) throw new ErroNegocio("Selecione o fornecedor do inventário.");
+    if (escopo === "produto" && !produtoId) throw new ErroNegocio("Selecione o produto do inventário.");
+    return emitirInventario(db, ator, { fornecedorId, produtoId });
+  }, "/relatorios", (r) => r.nova ? "Relatório de inventário emitido. Toque em PDF na lista abaixo." : "O estoque não mudou desde a última emissão de hoje; a versão existente foi mantida.");
 }
 
 async function acaoEmitir(fd: FormData) {
@@ -56,7 +71,7 @@ export default async function Relatorios({ searchParams }: { searchParams: Busca
   const ator = await exigirSessaoAdmin();
   const db = await getDb();
   const { ok, erro } = await lerParams(searchParams);
-  const [emissoes, fornecedores, pessoas] = await Promise.all([listarEmissoes(db, ator, { limite: 100 }), listarFornecedores(db, ator), listarVendedores(db, ator)]);
+  const [emissoes, fornecedores, pessoas, produtos] = await Promise.all([listarEmissoes(db, ator, { limite: 100 }), listarFornecedores(db, ator), listarVendedores(db, ator), listarProdutosAdmin(db, ator, { incluirInativos: true })]);
   return (
     <>
       <Mensagens ok={ok} erro={erro} />
@@ -67,6 +82,24 @@ export default async function Relatorios({ searchParams }: { searchParams: Busca
         <form action={acaoFechamento}>
           <SeletorPeriodo />
           <button className="btn primario">Gerar fechamento</button>
+        </form>
+      </section>
+      <section className="cartao">
+        <h2>Relatório de inventário</h2>
+        <p className="suave">Tudo o que está disponível no estoque agora, com quantidades e valores. Gere o geral, de um fornecedor ou de um produto.</p>
+        <form action={acaoInventario}>
+          <div className="linha-campos">
+            <div className="campo"><label>Mostrar</label>
+              <select name="escopo" defaultValue="geral">
+                <option value="geral">Geral — todos os produtos</option>
+                <option value="fornecedor">Só um fornecedor</option>
+                <option value="produto">Só um produto</option>
+              </select>
+            </div>
+            <div className="campo"><label>Fornecedor (se escolheu fornecedor)</label><select name="fornecedorId"><option value="">—</option>{fornecedores.map((f) => <option key={f.id} value={f.id}>{f.nome}</option>)}</select></div>
+            <div className="campo"><label>Produto (se escolheu produto)</label><select name="produtoId"><option value="">—</option>{produtos.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}</select></div>
+          </div>
+          <button className="btn primario">Gerar inventário em PDF</button>
         </form>
       </section>
       <details>
@@ -91,7 +124,7 @@ export default async function Relatorios({ searchParams }: { searchParams: Busca
             {emissoes.map((e) => (
               <tr key={e.id}>
                 <td>{e.titulo}{e.escopo && <><br /><small>{e.escopo}</small></>}</td>
-                <td>{formatarData(e.inicio)} a {formatarData(e.fim)}</td>
+                <td>{e.tipo === "inventario" ? `Posição de ${formatarDataHora(e.emitidoEm)}` : `${formatarData(e.inicio)} a ${formatarData(e.fim)}`}</td>
                 <td>v{e.versao} {e.retificado && <span className="selo rosa">retificado</span>}</td>
                 <td>{formatarDataHora(e.emitidoEm)}<br /><small>{e.emitidoPor}</small></td>
                 <td><a className="btn pequeno" href={`/relatorios/${e.id}/pdf`} target="_blank" rel="noopener">PDF</a></td>

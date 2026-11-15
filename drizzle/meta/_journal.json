@@ -29,6 +29,13 @@
       "when": 1793116524031,
       "tag": "0003_tentativas_login",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794783845634,
+      "tag": "0004_inventario",
+      "breakpoints": true
     }
   ]
 }

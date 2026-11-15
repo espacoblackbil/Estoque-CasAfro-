@@ -13,12 +13,12 @@ import { createHash } from "node:crypto";
 import { and, asc, desc, eq, gt, gte, lte, ne, sql } from "drizzle-orm";
 import type { DB } from "../db";
 import {
-  auditoria, fornecedores, movimentacoes, produtos, relatorioEmissoes, usuarios,
+  auditoria, categorias, fornecedores, movimentacoes, produtos, relatorioEmissoes, usuarios,
   vendaDevolucoes, vendaItens, vendas,
 } from "../db/schema";
 import { ErroNegocio } from "../erros";
 import { formatarBRL, formatarPercentual } from "@/domain/money";
-import { formatarData, formatarDataHora } from "@/domain/datas";
+import { formatarData, formatarDataHora, hoje } from "@/domain/datas";
 import { rotuloMovimento } from "@/domain/rotulos";
 import { renderizarPdf, type Bloco, type ModeloDocumento } from "../pdf/documento";
 import { obterConfiguracoes } from "./configuracoes";
@@ -30,6 +30,7 @@ import {
 import { exigirAdmin, type Ator } from "./permissoes";
 
 export type TipoRelatorio = "geral" | "fornecedor" | "colaborador" | "comissoes";
+export type TipoEmissao = TipoRelatorio | "inventario";
 
 const R = formatarBRL;
 export { rotuloMovimento };
@@ -460,7 +461,8 @@ function blocosComissoes(d: Awaited<ReturnType<typeof dadosComissoes>>): Bloco[]
   ];
 }
 
-const TITULOS: Record<TipoRelatorio, string> = {
+const TITULOS: Record<TipoEmissao, string> = {
+  inventario: "Relatório de inventário",
   geral: "Relatório geral",
   fornecedor: "Prestação de contas ao fornecedor",
   colaborador: "Relatório individual de colaborador",
@@ -628,6 +630,7 @@ export async function listarEmissoes(db: DB, ator: Ator, filtro: { de?: string; 
       id: relatorioEmissoes.id,
       tipo: relatorioEmissoes.tipo,
       escopoId: relatorioEmissoes.escopoId,
+      filtro: relatorioEmissoes.filtro,
       inicio: relatorioEmissoes.inicio,
       fim: relatorioEmissoes.fim,
       versao: relatorioEmissoes.versao,
@@ -643,10 +646,20 @@ export async function listarEmissoes(db: DB, ator: Ator, filtro: { de?: string; 
   // nome do escopo (fornecedor/colaborador)
   const forn = await db.select({ id: fornecedores.id, nome: fornecedores.nome }).from(fornecedores);
   const pess = await db.select({ id: usuarios.id, nome: usuarios.nome }).from(usuarios);
+  const prods = await db.select({ id: produtos.id, nome: produtos.nome }).from(produtos);
+  const escopoInventario = (filtro: string) => {
+    const [tipo, id] = filtro.split(":");
+    if (tipo === "fornecedor") return `Fornecedor: ${forn.find((f) => f.id === Number(id))?.nome ?? id}`;
+    if (tipo === "produto") return `Produto: ${prods.find((x) => x.id === Number(id))?.nome ?? id}`;
+    return "Geral (todos os produtos)";
+  };
   return linhas.map((l) => ({
     ...l,
     titulo: TITULOS[l.tipo],
-    escopo: l.tipo === "fornecedor" ? forn.find((f) => f.id === l.escopoId)?.nome : l.tipo === "colaborador" ? pess.find((u) => u.id === l.escopoId)?.nome : null,
+    escopo: l.tipo === "fornecedor" ? forn.find((f) => f.id === l.escopoId)?.nome
+      : l.tipo === "colaborador" ? pess.find((u) => u.id === l.escopoId)?.nome
+      : l.tipo === "inventario" ? escopoInventario(l.filtro)
+      : null,
   }));
 }
 
@@ -654,7 +667,170 @@ export async function obterPdf(db: DB, ator: Ator, id: number) {
   exigirAdmin(ator);
   const [e] = await db.select().from(relatorioEmissoes).where(eq(relatorioEmissoes.id, id));
   if (!e) throw new ErroNegocio("Relatório não encontrado.");
-  const nome = `casafro-${e.tipo}${e.escopoId ? `-${e.escopoId}` : ""}-${e.inicio}_${e.fim}-v${e.versao}${e.retificado ? "-retificado" : ""}.pdf`;
+  const sufixo = e.tipo === "inventario" ? `${e.filtro ? `-${e.filtro.replace(":", "-")}` : ""}-${e.inicio}` : `${e.escopoId ? `-${e.escopoId}` : ""}-${e.inicio}_${e.fim}`;
+  const nome = `casafro-${e.tipo}${sufixo}-v${e.versao}${e.retificado ? "-retificado" : ""}.pdf`;
   return { nome, pdf: Buffer.from(e.pdfBase64, "base64") };
 }
 
+
+// ───────────────────────────── Inventário ─────────────────────────────
+
+export interface FiltroInventario { fornecedorId?: number; produtoId?: number }
+
+/** Posição atual de tudo que tem estoque disponível (quantidade > 0), com valores. */
+export async function dadosInventario(db: DB, ator: Ator, f: FiltroInventario = {}) {
+  exigirAdmin(ator);
+  if (f.fornecedorId && f.produtoId) throw new ErroNegocio("Filtre por fornecedor OU por produto.");
+  const conds = [];
+  if (f.fornecedorId) conds.push(eq(produtos.fornecedorId, f.fornecedorId));
+  if (f.produtoId) conds.push(eq(produtos.id, f.produtoId));
+  const todos = await db
+    .select({
+      id: produtos.id,
+      nome: produtos.nome,
+      ativo: produtos.ativo,
+      modalidade: produtos.modalidade,
+      quantidade: produtos.quantidade,
+      custoMedioCents: produtos.custoMedioCents,
+      repasseCents: produtos.repasseCents,
+      precoVendaCents: produtos.precoVendaCents,
+      categoria: categorias.nome,
+      fornecedor: fornecedores.nome,
+    })
+    .from(produtos)
+    .leftJoin(categorias, eq(categorias.id, produtos.categoriaId))
+    .leftJoin(fornecedores, eq(fornecedores.id, produtos.fornecedorId))
+    .where(conds.length ? and(...conds) : undefined)
+    .orderBy(asc(fornecedores.nome), asc(produtos.nome));
+  if (f.produtoId && !todos.length) throw new ErroNegocio("Produto não encontrado.");
+  if (f.fornecedorId) {
+    const [forn] = await db.select({ id: fornecedores.id }).from(fornecedores).where(eq(fornecedores.id, f.fornecedorId));
+    if (!forn) throw new ErroNegocio("Fornecedor não encontrado.");
+  }
+  const linhas = todos
+    .filter((p) => p.quantidade > 0)
+    .map((p) => {
+      const unit = p.modalidade === "proprio" ? p.custoMedioCents : p.repasseCents;
+      return { ...p, valorUnitarioCents: unit, valorCustoCents: unit * p.quantidade, valorVendaCents: p.precoVendaCents * p.quantidade };
+    });
+  const soma = (fn: (l: (typeof linhas)[number]) => number) => linhas.reduce((a, l) => a + fn(l), 0);
+  return {
+    filtro: f.fornecedorId ? `fornecedor:${f.fornecedorId}` : f.produtoId ? `produto:${f.produtoId}` : "",
+    escopo: f.fornecedorId ? `Fornecedor: ${todos[0]?.fornecedor ?? ""}` : f.produtoId ? `Produto: ${todos[0]?.nome ?? ""}` : "Geral (todos os produtos)",
+    totais: {
+      produtos: linhas.length,
+      unidades: soma((l) => l.quantidade),
+      proprioACustoCents: soma((l) => (l.modalidade === "proprio" ? l.valorCustoCents : 0)),
+      consignadoARepasseCents: soma((l) => (l.modalidade === "consignado" ? l.valorCustoCents : 0)),
+      aPrecoDeVendaCents: soma((l) => l.valorVendaCents),
+    },
+    linhas,
+    semSaldo: todos.filter((p) => p.quantidade <= 0 && p.ativo).map((p) => ({ nome: p.nome, quantidade: p.quantidade })),
+  };
+}
+
+function blocosInventario(d: Awaited<ReturnType<typeof dadosInventario>>): Bloco[] {
+  const t = d.totais;
+  const b: Bloco[] = [
+    { tipo: "paragrafo", texto: `Escopo: ${d.escopo}. Posição do estoque no momento da emissão.` },
+    {
+      tipo: "kpis",
+      itens: [
+        { rotulo: "Produtos com estoque", valor: String(t.produtos) },
+        { rotulo: "Unidades disponíveis", valor: String(t.unidades) },
+        { rotulo: "Total a preço de venda", valor: R(t.aPrecoDeVendaCents), destaque: true },
+        { rotulo: "Próprio, a custo médio", valor: R(t.proprioACustoCents) },
+        { rotulo: "Consignado, a repasse", valor: R(t.consignadoARepasseCents) },
+      ],
+    },
+    {
+      tipo: "tabela",
+      titulo: "Estoque disponível",
+      colunas: [
+        { titulo: "Produto", largura: 3.6 },
+        { titulo: "Fornecedor", largura: 2.4 },
+        { titulo: "Mod.", largura: 1.2 },
+        { titulo: "Qtd.", largura: 0.9, alinhar: "right" },
+        { titulo: "Custo/repasse un.", largura: 1.8, alinhar: "right" },
+        { titulo: "Valor a custo", largura: 1.8, alinhar: "right" },
+        { titulo: "Preço un.", largura: 1.6, alinhar: "right" },
+        { titulo: "Valor a venda", largura: 1.8, alinhar: "right" },
+      ],
+      linhas: d.linhas.map((l) => [
+        `${l.nome}${l.categoria ? ` (${l.categoria})` : ""}${l.ativo ? "" : " [inativo]"}`,
+        l.fornecedor ?? "—",
+        l.modalidade === "proprio" ? "Próprio" : "Consig.",
+        String(l.quantidade),
+        R(l.valorUnitarioCents),
+        R(l.valorCustoCents),
+        R(l.precoVendaCents),
+        R(l.valorVendaCents),
+      ]),
+      total: ["Total", "", "", String(t.unidades), "", R(t.proprioACustoCents + t.consignadoARepasseCents), "", R(t.aPrecoDeVendaCents)],
+      vazio: "Nenhum produto com estoque disponível.",
+    },
+    {
+      tipo: "paragrafo",
+      suave: true,
+      texto: "Próprios valorizados pelo custo médio ponderado; consignados pelo valor de repasse (mercadoria do fornecedor em poder da CasAfro, não é patrimônio da CasAfro).",
+    },
+  ];
+  if (d.semSaldo.length) {
+    b.push({
+      tipo: "tabela",
+      titulo: "Produtos ativos sem estoque",
+      colunas: [{ titulo: "Produto", largura: 8 }, { titulo: "Saldo", largura: 2, alinhar: "right" }],
+      linhas: d.semSaldo.map((x) => [x.nome, String(x.quantidade)]),
+    });
+  }
+  return b;
+}
+
+/** Emite o PDF de inventário (posição de hoje). Reemitir sem mudança no estoque devolve a mesma versão. */
+export async function emitirInventario(db: DB, ator: Ator, f: FiltroInventario = {}) {
+  const dados = await dadosInventario(db, ator, f);
+  const dia = hoje();
+  const hash = createHash("sha256").update(JSON.stringify(dados)).digest("hex");
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`inventario:${dados.filtro}:${dia}`}))`);
+    const [ultima] = await tx
+      .select()
+      .from(relatorioEmissoes)
+      .where(and(eq(relatorioEmissoes.tipo, "inventario"), eq(relatorioEmissoes.filtro, dados.filtro), eq(relatorioEmissoes.inicio, dia), eq(relatorioEmissoes.fim, dia)))
+      .orderBy(desc(relatorioEmissoes.versao))
+      .limit(1);
+    if (ultima && ultima.hashDados === hash) return { emissao: ultima, nova: false };
+    const versao = (ultima?.versao ?? 0) + 1;
+    const cfg = await obterConfiguracoes(tx);
+    const agora = new Date();
+    const pdf = await renderizarPdf({
+      titulo: TITULOS.inventario,
+      subtitulo: dados.escopo,
+      periodo: `Posição em ${formatarDataHora(agora)}`,
+      emitidoEm: formatarDataHora(agora),
+      emitidoPor: ator.nome,
+      versao,
+      retificado: false,
+      empresa: { nomeFantasia: cfg.nomeFantasia, razaoSocial: cfg.razaoSocial, cnpj: cfg.cnpj, endereco: cfg.endereco, telefone: cfg.telefone, logotipo: cfg.logotipo },
+      blocos: blocosInventario(dados),
+    });
+    const [emissao] = await tx
+      .insert(relatorioEmissoes)
+      .values({
+        tipo: "inventario",
+        escopoId: f.fornecedorId ?? f.produtoId ?? 0,
+        filtro: dados.filtro,
+        inicio: dia,
+        fim: dia,
+        versao,
+        retificado: false,
+        hashDados: hash,
+        dados: JSON.parse(JSON.stringify(dados)),
+        pdfBase64: pdf.toString("base64"),
+        emitidoPor: ator.id,
+        emitidoEm: agora,
+      })
+      .returning();
+    return { emissao, nova: true };
+  });
+}

@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 
 interface Item { href: string; rotulo: string; ico: string; classe?: string }
 
-export function Nav({ admin }: { admin: boolean }) {
+export function Nav({ admin, principal = false }: { admin: boolean; principal?: boolean }) {
   const caminho = usePathname();
   const itens: Item[] = admin
     ? [
@@ -15,6 +15,7 @@ export function Nav({ admin }: { admin: boolean }) {
         { href: "/menu", rotulo: "Mais", ico: "☰", classe: "so-celular" },
         { href: "/vendas", rotulo: "Vendas", ico: "≡", classe: "so-desktop" },
         { href: "/financeiro", rotulo: "Financeiro", ico: "$", classe: "so-desktop" },
+        ...(principal ? [{ href: "/reposicao", rotulo: "Reposição e lucro", ico: "⚖", classe: "so-desktop" }] : []),
         { href: "/comissoes", rotulo: "Comissões", ico: "％", classe: "so-desktop" },
         { href: "/relatorios", rotulo: "Relatórios", ico: "⎙", classe: "so-desktop" },
         { href: "/fornecedores", rotulo: "Fornecedores", ico: "◇", classe: "so-desktop" },

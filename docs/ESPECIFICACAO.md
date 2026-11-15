@@ -418,3 +418,26 @@ O sistema somente deverá ser considerado funcional quando as operações estive
 ---
 
 **Resultado esperado:** uma plataforma interna de gestão que permita à CasAfro acompanhar sua movimentação de produtos diariamente e realizar o fechamento mensal com informações confiáveis, rastreáveis e documentos profissionais, reduzindo o trabalho administrativo e a possibilidade de erros financeiros.
+
+---
+
+## Adendo — Versão 1.1 (solicitado pela CasAfro em 15/11/2026)
+
+### A1. Relatório de inventário
+
+A Central de Relatórios deverá gerar um **relatório de inventário** em PDF, mostrando tudo o que está disponível
+no estoque no momento da emissão (quantidades, valores a custo/repasse e a preço de venda), com opção de
+filtrar **por produto**, **por fornecedor** ou **geral**.
+
+### A2. Demonstrativo de reposição e lucro (somente administrador principal)
+
+Página acessível **apenas ao administrador principal**, que pega o resultado das vendas do período e mostra,
+por **fornecedor**, **categoria** e **produto**, quanto do valor deve ser **guardado** para repor o estoque sem
+prejuízo e quanto é **lucro**. Devem ser separados como "a guardar":
+
+- reposição dos produtos próprios vendidos, pelo **custo da última compra**;
+- repasse a fornecedores (consignados);
+- comissões dos colaboradores;
+- reposição do consumo interno e das perdas.
+
+Objetivo: evitar que o dinheiro dos produtos seja gasto com outras despesas sem repor o que precisa ser reposto.

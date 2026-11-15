@@ -3,6 +3,7 @@ import { getDb } from "@/server/db";
 import { exigirSessao } from "@/server/sessao";
 import { ehAdmin } from "@/server/services/permissoes";
 import { dashboard } from "@/server/services/financeiro";
+import { demonstrativoReposicao } from "@/server/services/reposicao";
 import { listarVendas } from "@/server/services/vendas";
 import { extratoComissoes } from "@/server/services/comissoes";
 import { formatarBRL as R } from "@/domain/money";
@@ -35,6 +36,7 @@ export default async function Inicio({ searchParams }: { searchParams: BuscaPara
   }
 
   const d = await dashboard(db, ator);
+  const rep = ator.papel === "principal" ? (await demonstrativoReposicao(db, ator, d.mes, "fornecedor")).total : null;
   return (
     <>
       <Mensagens ok={ok} erro={erro} />
@@ -47,6 +49,16 @@ export default async function Inicio({ searchParams }: { searchParams: BuscaPara
         <div className="kpi"><div className="rotulo">Faturamento do mês</div><div className="valor">{R(d.faturamentoMes.liquidoCents)}</div><div className="detalhe">{d.faturamentoMes.vendas} venda(s) · bruto {R(d.faturamentoMes.brutoCents)}</div></div>
         <div className={`kpi ${d.resultadoMesCents >= 0 ? "amarelo" : "rosa"}`}><div className="rotulo">Resultado estimado do mês</div><div className="valor">{R(d.resultadoMesCents)}</div><div className="detalhe">operação com produtos</div></div>
       </div>
+      {rep && (
+        <Link href="/reposicao" className="cartao" style={{ display: "block", textDecoration: "none", color: "inherit", borderColor: "var(--amarelo)" }}>
+          <h2 style={{ marginBottom: 6 }}>Reposição e lucro do mês <span className="selo">só você vê</span></h2>
+          <div className="acoes" style={{ justifyContent: "space-between" }}>
+            <span>Guardar para repor e pagar: <strong className="num">{R(rep.guardarCents)}</strong></span>
+            <span>Seu lucro: <strong className="num" style={{ color: rep.lucroCents < 0 ? "var(--rosa-escuro)" : "var(--verde-escuro)" }}>{R(rep.lucroCents)}</strong></span>
+          </div>
+          <small className="suave">Toque para ver por fornecedor, categoria e produto ›</small>
+        </Link>
+      )}
       <div className="grade-2">
         <section className="cartao">
           <h2>Estoque baixo <span className="selo">mínimo {d.estoqueMinimo}</span></h2>
