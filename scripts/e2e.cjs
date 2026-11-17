@@ -138,9 +138,11 @@ const OUT = process.argv[2];
 
   // ── Venda de hoje com desconto e pagamento dividido ──
   await page.goto(B + "/vender");
-  await page.click("button.produto-btn:has-text('Óleo de Coco')");
-  await page.click("button.produto-btn:has-text('Óleo de Coco')");
-  await page.click("button.produto-btn:has-text('Máscara')");
+  // vários produtos na mesma venda; quantidade ajustada no próprio cartão
+  await page.click(".produto-btn:has-text('Óleo de Coco') .produto-area");
+  await page.click(".produto-btn:has-text('Máscara') .produto-area");
+  await page.click("button[aria-label='Aumentar Óleo de Coco 120ml']");
+  assert.match(await page.textContent(".barra-venda"), /3 item\(ns\)/);
   await page.selectOption("select >> nth=0", { label: "Carla Colab" });
   await page.fill("input[placeholder='0,00'] >> nth=0", "10,00");
   await page.fill("input[placeholder='0,00'] >> nth=1", "100,00");
@@ -152,7 +154,7 @@ const OUT = process.argv[2];
 
   // ── Venda retroativa com valores da época ──
   await page.goto(B + "/vender");
-  await page.click("button.produto-btn:has-text('Óleo de Coco')");
+  await page.click(".produto-btn:has-text('Óleo de Coco') .produto-area");
   await page.fill("input[type=date]", "2026-09-15");
   await page.fill("input[aria-label='Preço da época']", "45,00");
   await page.fill("input[aria-label='Custo ou repasse da época']", "28,00");
@@ -226,6 +228,20 @@ const OUT = process.argv[2];
   await page.waitForURL(/login/, { waitUntil: "commit" });
   await entrar("carla", "senha123");
   await page.waitForSelector("text=Olá, Carla");
+  // retirada de vários produtos para uso do salão, pela tela de venda
+  await page.goto(B + "/vender");
+  await page.click("button[role=tab]:has-text('Uso do salão')");
+  await page.fill("#busca", "másc");
+  await page.click(".produto-btn:has-text('Máscara') .produto-area");
+  assert.equal(await page.inputValue("#busca"), ""); // busca limpa para o próximo produto
+  await page.click(".produto-btn:has-text('Óleo de Coco') .produto-area");
+  await page.click("button[aria-label='Aumentar Máscara Nutritiva 500g']");
+  await page.fill("input[placeholder^='Ex.: hidratação']", "Hidratação da cliente Ana");
+  await page.click("button:has-text('Registrar uso do salão ·')");
+  await page.waitForSelector(".aviso.ok");
+  assert.match(await page.textContent(".aviso.ok"), /3 unidade\(s\) saíram do estoque/);
+  etapa("colaboradora registra uso do salão com vários produtos de uma vez");
+
   await page.goto(B + "/produtos");
   assert.doesNotMatch(await page.content(), /repasse|custo/i);
   for (const rota of ["/estoque", "/financeiro", "/reposicao", "/relatorios", "/auditoria", "/configuracoes", "/usuarios", "/menu"]) {

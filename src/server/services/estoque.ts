@@ -14,12 +14,12 @@
 import { and, asc, desc, eq, gte, lte, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import type { DB } from "../db";
-import { fornecedores, movimentacoes, produtos, usuarios } from "../db/schema";
+import { fornecedores, movimentacoes, produtos, retiradasSalao, usuarios } from "../db/schema";
 import { ErroNegocio } from "../erros";
 import { arred } from "@/domain/money";
 import { hoje, validarData } from "@/domain/datas";
 import { auditar } from "./auditoria";
-import { exigirAdmin, type Ator } from "./permissoes";
+import { ehAdmin, exigirAdmin, type Ator } from "./permissoes";
 
 export type Produto = typeof produtos.$inferSelect;
 export type Movimento = typeof movimentacoes.$inferSelect;
@@ -73,6 +73,7 @@ export async function lancarSaida(
     repasseUnitarioCents?: number;
     vendaItemId?: number;
     corrigeId?: number;
+    retiradaId?: number;
   },
 ): Promise<ResultadoSaida> {
   const { qtd } = args;
@@ -120,6 +121,7 @@ export async function lancarSaida(
       afetaEstoque: afeta,
       vendaItemId: args.vendaItemId ?? null,
       corrigeId: args.corrigeId ?? null,
+      retiradaId: args.retiradaId ?? null,
     })
     .returning();
 
@@ -582,4 +584,74 @@ export async function verificarConsistencia(db: DB) {
     if (soma !== p.quantidade) divergentes.push({ ...p, soma });
   }
   return divergentes;
+}
+
+// ───────────────────────────── Uso do salão ─────────────────────────────
+
+const esquemaRetirada = z.object({
+  chaveIdempotencia: z.string().min(8).max(100),
+  itens: z
+    .array(z.object({ produtoId: z.number().int().positive(), quantidade: z.number().int().positive("Use unidades inteiras") }))
+    .min(1, "Escolha ao menos um produto")
+    .max(100),
+  observacao: z.string().trim().max(300).optional(),
+  dataEfetiva: z.string().optional(),
+});
+
+/**
+ * Retirada de vários produtos para uso do salão (consumo interno), feita pela tela de venda.
+ * Pode ser registrada por qualquer usuário ativo (decisão D19); colaboradores só lançam na data de hoje
+ * e não recebem custos. Gera repasse para consignados e custo para próprios, sem faturamento nem comissão.
+ * Uma única transação com chave de idempotência: repetir o envio não duplica a retirada.
+ */
+export async function registrarUsoSalao(db: DB, ator: Ator, dados: z.input<typeof esquemaRetirada>) {
+  const v = esquemaRetirada.parse(dados);
+  if (v.dataEfetiva && v.dataEfetiva !== hoje() && !ehAdmin(ator)) {
+    throw new ErroNegocio("Somente administradores lançam retiradas com data anterior.");
+  }
+  const data = validarDataEfetiva(v.dataEfetiva);
+  const ids = v.itens.map((i) => i.produtoId);
+  if (new Set(ids).size !== ids.length) throw new ErroNegocio("O mesmo produto aparece mais de uma vez; ajuste a quantidade.");
+
+  const buscar = async () => (await db.select().from(retiradasSalao).where(eq(retiradasSalao.chaveIdempotencia, v.chaveIdempotencia)))[0];
+  const existente = await buscar();
+  if (existente) return { retirada: existente, duplicada: true, unidades: 0 };
+
+  try {
+    return await db.transaction(async (tx) => {
+      const [u] = await tx.select({ ativo: usuarios.ativo }).from(usuarios).where(eq(usuarios.id, ator.id));
+      if (!u?.ativo) throw new ErroNegocio("Usuário inativo.");
+      const [retirada] = await tx
+        .insert(retiradasSalao)
+        .values({ chaveIdempotencia: v.chaveIdempotencia, dataEfetiva: data, usuarioId: ator.id, observacao: v.observacao || null })
+        .returning();
+      const resumo = [];
+      for (const id of [...ids].sort((a, b) => a - b)) {
+        const p = await travarProduto(tx, id);
+        if (!p.ativo) throw new ErroNegocio(`O produto "${p.nome}" está inativo.`);
+        const qtd = v.itens.find((i) => i.produtoId === id)!.quantidade;
+        await lancarSaida(tx, ator, p, {
+          tipo: "consumo_interno",
+          qtd,
+          data,
+          efeito: "repasse_ou_despesa",
+          justificativa: `Uso do salão${v.observacao ? ` — ${v.observacao}` : ""}`,
+          retiradaId: retirada.id,
+        });
+        resumo.push({ produtoId: id, nome: p.nome, quantidade: qtd });
+      }
+      await auditar(tx, ator, {
+        acao: "uso_salao",
+        entidade: "retirada",
+        entidadeId: retirada.id,
+        depois: { itens: resumo, observacao: v.observacao ?? null },
+        dataEfetiva: data,
+      });
+      return { retirada, duplicada: false, unidades: resumo.reduce((a, r) => a + r.quantidade, 0) };
+    });
+  } catch (e) {
+    const dup = await buscar(); // corrida com a mesma chave
+    if (dup) return { retirada: dup, duplicada: true, unidades: 0 };
+    throw e;
+  }
 }

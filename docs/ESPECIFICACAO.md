@@ -441,3 +441,16 @@ prejuízo e quanto é **lucro**. Devem ser separados como "a guardar":
 - reposição do consumo interno e das perdas.
 
 Objetivo: evitar que o dinheiro dos produtos seja gasto com outras despesas sem repor o que precisa ser reposto.
+
+## Adendo — Versão 1.2 (solicitado pela CasAfro em 17/11/2026)
+
+### A3. Vários produtos por venda, de forma rápida
+
+Na tela de venda, deve ser possível escolher vários produtos de uma vez (todos entram na mesma venda),
+ajustando a quantidade de cada um sem sair da lista de produtos.
+
+### A4. Retirada para uso do salão pela tela de venda
+
+A tela de venda deverá permitir registrar a saída de um ou mais produtos retirados para uso do salão
+(consumo interno). **Administradores e colaboradores** podem registrar essa retirada (amplia o §3.3);
+fica gravado quem retirou. Colaboradores continuam sem acesso a custos e lançam apenas na data de hoje.

@@ -43,6 +43,8 @@ O roteiro `scripts/e2e.cjs` repete os fluxos principais no navegador (celular), 
 |---|---|---|---|
 | A1 | Relatório de inventário (geral, por fornecedor, por produto) em PDF | `relatorios.dadosInventario`, `emitirInventario`; Central de Relatórios | `m9` — inventário; `scripts/e2e.cjs` |
 | A2 | Reposição e lucro por fornecedor/categoria/produto, só principal | `services/reposicao.ts`, `src/app/(app)/reposicao`, resumo no Painel | `m9` — reposição (valores conferidos à mão, exclusividade do principal); `scripts/e2e.cjs` |
+| A3 | Vários produtos por venda, quantidade no próprio cartão | `src/app/(app)/vender/Pdv.tsx` | `m4` (venda multi-itens); `scripts/e2e.cjs` |
+| A4 | Retirada para uso do salão pela tela de venda (admins e colaboradores) | `estoque.registrarUsoSalao`, modo "Uso do salão" no PDV | `m10` — uso do salão (idempotência, permissões, tudo-ou-nada); `scripts/e2e.cjs` |
 
 ## Critérios mínimos de funcionamento (§17)
 

@@ -163,7 +163,16 @@ details[open] > summary { margin-bottom: 12px; }
   width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 8px;
   padding: 12px; border: 1px solid var(--linha); border-radius: 12px; background: #fff; font: inherit; cursor: pointer; text-align: left; margin-bottom: 8px;
 }
-.produto-btn { color: var(--tinta); -webkit-tap-highlight-color: transparent; }
+.produto-btn { color: var(--tinta); -webkit-tap-highlight-color: transparent; flex-direction: column; align-items: stretch; padding: 0; cursor: default; }
+.produto-btn .produto-area {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%;
+  padding: 12px; border: 0; background: transparent; font: inherit; color: inherit; text-align: left; cursor: pointer;
+}
+.produto-btn .qtd-cartao { justify-content: flex-end; gap: 8px; padding: 0 12px 10px; }
+.modos { display: flex; gap: 6px; background: #ece9e1; padding: 4px; border-radius: 12px; }
+.modos button { flex: 1; min-height: 44px; border: 0; border-radius: 9px; background: transparent; font: inherit; font-weight: 600; color: var(--suave); cursor: pointer; }
+.modos button.ativo { background: #fff; color: var(--tinta); box-shadow: var(--sombra); }
+@media (min-width: 900px) { .modos { grid-column: 1 / -1; } }
 .produto-btn:hover { border-color: var(--verde); background: var(--verde-claro); }
 .produto-btn:active { transform: scale(0.98); }
 .produto-btn.na-venda { border: 2px solid var(--verde-escuro); background: var(--verde-claro); }

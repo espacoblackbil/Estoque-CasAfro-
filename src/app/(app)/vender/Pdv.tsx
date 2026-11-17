@@ -3,7 +3,7 @@ import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import type { ProdutoPublico } from "@/server/services/cadastros";
 import { formatarBRL as R, parseBRL, parsePercentual } from "@/domain/money";
-import { acaoRegistrarVenda, type RespostaVenda } from "./acoes";
+import { acaoRegistrarUsoSalao, acaoRegistrarVenda, type RespostaUsoSalao, type RespostaVenda } from "./acoes";
 
 type Forma = "pix" | "dinheiro" | "debito" | "credito";
 const FORMAS: { id: Forma; rotulo: string }[] = [
@@ -39,6 +39,11 @@ export function Pdv(props: { produtos: ProdutoPublico[]; modalidades?: Record<nu
   const [autLogin, setAutLogin] = useState("");
   const [autSenha, setAutSenha] = useState("");
   const [enviando, iniciar] = useTransition();
+  /** "venda" ou "salao" (retirada para uso do salão). Os itens escolhidos são mantidos ao trocar. */
+  const [modo, setModo] = useState<"venda" | "salao">("venda");
+  const [observacao, setObservacao] = useState("");
+  const [respostaSalao, setRespostaSalao] = useState<RespostaUsoSalao | null>(null);
+  const salao = modo === "salao";
 
   const filtrados = useMemo(() => {
     const t = busca.trim().toLocaleLowerCase("pt-BR").normalize("NFD").replace(/\p{M}/gu, "");
@@ -60,6 +65,8 @@ export function Pdv(props: { produtos: ProdutoPublico[]; modalidades?: Record<nu
 
   function adicionar(p: ProdutoPublico) {
     setResposta(null);
+    setRespostaSalao(null);
+    if (busca) setBusca(""); // volta à lista completa para escolher o próximo produto
     setLinhas((ls) => {
       const i = ls.findIndex((l) => l.produto.id === p.id);
       if (i >= 0) return ls.map((l, k) => (k === i ? { ...l, qtd: l.qtd + 1 } : l));
@@ -71,7 +78,22 @@ export function Pdv(props: { produtos: ProdutoPublico[]; modalidades?: Record<nu
 
   function limpar() {
     setLinhas([]); setCliente(""); setDescTotal(""); setPagamentos({ pix: "", dinheiro: "", debito: "", credito: "" });
-    setConfirmaMargem(false); setAutLogin(""); setAutSenha(""); setChave(novaChave()); setBusca("");
+    setConfirmaMargem(false); setAutLogin(""); setAutSenha(""); setChave(novaChave()); setBusca(""); setObservacao("");
+  }
+
+  const unidades = linhas.reduce((a, l) => a + l.qtd, 0);
+
+  function registrarSalao() {
+    iniciar(async () => {
+      const r = await acaoRegistrarUsoSalao({
+        chaveIdempotencia: chave,
+        itens: linhas.map((l) => ({ produtoId: l.produto.id, quantidade: l.qtd })),
+        observacao: observacao || undefined,
+        dataEfetiva: admin ? data : undefined,
+      });
+      setRespostaSalao(r);
+      if (r.ok) limpar();
+    });
   }
 
   function finalizar() {
@@ -110,6 +132,18 @@ export function Pdv(props: { produtos: ProdutoPublico[]; modalidades?: Record<nu
     });
   }
 
+  if (respostaSalao?.ok) {
+    return (
+      <div className="cartao" style={{ textAlign: "center" }}>
+        <div className="aviso ok">Retirada para uso do salão registrada{respostaSalao.duplicada ? " (já havia sido gravada — nada foi duplicado)" : `: ${respostaSalao.unidades} unidade(s) saíram do estoque`}.</div>
+        <div className="acoes" style={{ justifyContent: "center" }}>
+          <button className="btn amarelo" onClick={() => setRespostaSalao(null)}>＋ Nova retirada</button>
+          <button className="btn" onClick={() => { setRespostaSalao(null); setModo("venda"); }}>Voltar para vendas</button>
+        </div>
+      </div>
+    );
+  }
+
   if (resposta?.ok) {
     return (
       <div className="cartao" style={{ textAlign: "center" }}>
@@ -124,18 +158,36 @@ export function Pdv(props: { produtos: ProdutoPublico[]; modalidades?: Record<nu
 
   return (
     <div className="pdv">
+      <div className="modos" role="tablist" aria-label="Tipo de registro">
+        <button type="button" role="tab" aria-selected={!salao} className={!salao ? "ativo" : ""} onClick={() => setModo("venda")}>🛒 Venda</button>
+        <button type="button" role="tab" aria-selected={salao} className={salao ? "ativo" : ""} onClick={() => setModo("salao")}>✂ Uso do salão</button>
+      </div>
       <section className="cartao">
+        <p className="suave" style={{ fontSize: "0.85rem", marginTop: 0 }}>
+          {salao
+            ? "Toque em todos os produtos que foram usados no salão — eles saem juntos do estoque, sem venda e sem comissão."
+            : "Toque em todos os produtos da compra — eles entram juntos na mesma venda. Use − e + para a quantidade."}
+        </p>
         <label htmlFor="busca">Buscar produto</label>
         <input id="busca" placeholder="Digite o nome…" value={busca} onChange={(e) => setBusca(e.target.value)} autoComplete="off" />
         <div className="lista-produtos">
           {filtrados.map((p) => {
             const naVenda = linhas.find((l) => l.produto.id === p.id)?.qtd ?? 0;
             return (
-              <button type="button" key={p.id} className={`produto-btn ${naVenda ? "na-venda" : ""}`} onClick={() => adicionar(p)}>
-                <span><strong>{p.nome}</strong><br /><small>{p.categoria ?? "Sem categoria"} · {p.quantidade} em estoque {p.quantidade <= 0 && <span className="selo rosa">sem saldo</span>}</small>
-                  {naVenda > 0 && <><br /><span className="selo verde">✓ {naVenda} na venda</span></>}</span>
-                <strong className="num">{R(p.precoVendaCents)}</strong>
-              </button>
+              <div key={p.id} className={`produto-btn ${naVenda ? "na-venda" : ""}`}>
+                <button type="button" className="produto-area" onClick={() => adicionar(p)}>
+                  <span><strong>{p.nome}</strong><br /><small>{p.categoria ?? "Sem categoria"} · {p.quantidade} em estoque {p.quantidade <= 0 && <span className="selo rosa">sem saldo</span>}</small></span>
+                  <strong className="num">{R(p.precoVendaCents)}</strong>
+                </button>
+                {naVenda > 0 && (
+                  <div className="qtd qtd-cartao">
+                    <span className="selo verde">✓ {salao ? "na retirada" : "na venda"}</span>
+                    <button type="button" aria-label={`Diminuir ${p.nome}`} onClick={() => mudarQtd(p.id, naVenda - 1)}>−</button>
+                    <strong aria-live="polite" style={{ minWidth: 24, textAlign: "center" }}>{naVenda}</strong>
+                    <button type="button" aria-label={`Aumentar ${p.nome}`} onClick={() => mudarQtd(p.id, naVenda + 1)}>+</button>
+                  </div>
+                )}
+              </div>
             );
           })}
           {filtrados.length === 0 && <p className="suave">Nenhum produto encontrado.</p>}
@@ -144,22 +196,22 @@ export function Pdv(props: { produtos: ProdutoPublico[]; modalidades?: Record<nu
 
       {linhas.length > 0 && (
         <div className="barra-venda" role="status">
-          <span><strong>{linhas.reduce((a, l) => a + l.qtd, 0)} item(ns)</strong> · {R(total)}</span>
+          <span><strong>{unidades} item(ns)</strong>{salao ? " para o salão" : ` · ${R(total)}`}</span>
           <button type="button" className="btn primario pequeno" onClick={() => document.getElementById("carrinho")?.scrollIntoView({ behavior: "smooth", block: "start" })}>
-            Concluir venda ↓
+            {salao ? "Registrar uso ↓" : "Concluir venda ↓"}
           </button>
         </div>
       )}
 
       <section className="cartao carrinho" id="carrinho">
-        <h2>Itens</h2>
+        <h2>{salao ? "Itens para uso do salão" : "Itens da venda"}</h2>
         {linhas.length === 0 && <p className="suave">Toque em um produto para adicionar.</p>}
         <ul className="lista">
           {linhas.map((l) => (
             <li key={l.produto.id} style={{ flexWrap: "wrap" }}>
               <div style={{ flex: "1 1 160px" }}>
                 <div className="principal">{l.produto.nome}</div>
-                <small>{R(precoDe(l) || 0)} un.</small>
+                {!salao && <small>{R(precoDe(l) || 0)} un.</small>}
                 {l.produto.quantidade - l.qtd < 0 && <div><span className="selo rosa">estoque ficará negativo</span></div>}
               </div>
               <div className="qtd">
@@ -167,8 +219,8 @@ export function Pdv(props: { produtos: ProdutoPublico[]; modalidades?: Record<nu
                 <input inputMode="numeric" value={l.qtd} onChange={(e) => mudarQtd(l.produto.id, parseInt(e.target.value || "0", 10) || 0)} aria-label="Quantidade" />
                 <button type="button" aria-label="Aumentar" onClick={() => mudarQtd(l.produto.id, l.qtd + 1)}>+</button>
               </div>
-              <strong className="num" style={{ minWidth: 90 }}>{R((precoDe(l) || 0) * l.qtd)}</strong>
-              {admin && (
+              {!salao && <strong className="num" style={{ minWidth: 90 }}>{R((precoDe(l) || 0) * l.qtd)}</strong>}
+              {admin && !salao && (
                 <div style={{ flexBasis: "100%" }}>
                   <input placeholder="Desconto no item (R$)" inputMode="decimal" value={l.desconto} onChange={(e) => atualizar(l.produto.id, "desconto", e.target.value)} />
                   {retroativa && (
@@ -184,6 +236,20 @@ export function Pdv(props: { produtos: ProdutoPublico[]; modalidades?: Record<nu
           ))}
         </ul>
 
+        {salao ? (
+          <>
+            <div className="linha-campos" style={{ marginTop: 12 }}>
+              <div className="campo"><label>Observação (opcional)</label><input value={observacao} onChange={(e) => setObservacao(e.target.value)} placeholder="Ex.: hidratação da cliente Ana" /></div>
+              {admin && <div className="campo"><label>Data</label><input type="date" value={data} max={props.hoje} onChange={(e) => setData(e.target.value)} /></div>}
+            </div>
+            <p className="suave" style={{ fontSize: "0.82rem" }}>Os produtos saem do estoque como consumo interno, registrados em seu nome. Consignados geram repasse ao fornecedor; não há faturamento nem comissão.</p>
+            {respostaSalao && !respostaSalao.ok && <div className="aviso erro" role="alert">{respostaSalao.erro}</div>}
+            <button className="btn primario bloco" style={{ minHeight: 52, fontSize: "1.05rem" }} disabled={enviando || linhas.length === 0} onClick={registrarSalao}>
+              {enviando ? "Registrando…" : `Registrar uso do salão · ${unidades} un.`}
+            </button>
+          </>
+        ) : (
+          <>
         <div className="linha-campos" style={{ marginTop: 12 }}>
           <div className="campo">
             <label>Colaborador responsável</label>
@@ -239,6 +305,8 @@ export function Pdv(props: { produtos: ProdutoPublico[]; modalidades?: Record<nu
         <button className="btn primario bloco" style={{ minHeight: 52, fontSize: "1.05rem" }} disabled={enviando || linhas.length === 0 || falta !== 0} onClick={finalizar}>
           {enviando ? "Registrando…" : `Concluir venda · ${R(total)}`}
         </button>
+          </>
+        )}
         {linhas.length > 0 && <button type="button" className="btn bloco" style={{ marginTop: 8 }} onClick={limpar}>Limpar</button>}
       </section>
     </div>

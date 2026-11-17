@@ -225,6 +225,8 @@ export const movimentacoes = pgTable("movimentacoes", {
   ajusteCustoCents: integer("ajuste_custo_cents").notNull().default(0),
   afetaEstoque: boolean("afeta_estoque").notNull().default(true),
   vendaItemId: integer("venda_item_id").references(() => vendaItens.id),
+  /** Retirada para uso do salão que originou esta movimentação (consumo interno pela tela de venda). */
+  retiradaId: integer("retirada_id"),
   /** Correções: a anulada aponta para quem a substituiu. */
   anulada: boolean("anulada").notNull().default(false),
   anuladaEm: timestamp("anulada_em", { withTimezone: true }),
@@ -308,3 +310,13 @@ export const tentativasLogin = pgTable("tentativas_login", {
   login: text("login").notNull(),
   criadoEm: criadoEm(),
 }, (t) => [index("tentativas_login_idx").on(t.login, t.criadoEm)]);
+
+/** Retiradas de produtos para uso do salão (consumo interno registrado pela tela de venda). */
+export const retiradasSalao = pgTable("retiradas_salao", {
+  id: serial("id").primaryKey(),
+  chaveIdempotencia: text("chave_idempotencia").notNull(),
+  dataEfetiva: date("data_efetiva", { mode: "string" }).notNull(),
+  usuarioId: integer("usuario_id").notNull().references(() => usuarios.id),
+  observacao: text("observacao"),
+  criadoEm: criadoEm(),
+}, (t) => [uniqueIndex("retiradas_idem_uq").on(t.chaveIdempotencia)]);
